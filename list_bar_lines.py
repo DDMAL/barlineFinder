@@ -15,7 +15,7 @@ Usage python list_bar_lines.py [OPTIONS] {FILENAME}
 
 Options
   -h display this help message
-  -i save intermediate computation data  
+  -i save intermediate computation data
   -o DIRNAME directory root for saving output (default ./)
   -r DPI resolution in dots per inch of input image (default 400)
   -s use single-staff rather than double-staff systems
@@ -36,7 +36,8 @@ import gamera.plugins.numeric_io
 import gamera.plugins.pil_io
 import gamera.toolkits.musicstaves
 from scipy import *
-
+from scipy import signal
+from scipy import cluster
 
 def _peaks(signal, width=3):
     # Finds the indices of the peaks in a signal.
@@ -97,12 +98,12 @@ class BarlinerContext(object):
 
 class BarlinerStaff(object):
     """Simple record class to make Gamera staves picklable."""
-    
+
     def __init__(self, staffno, yposlist, staffrect):
         self.staffno = staffno
         self.yposlist = asarray(yposlist)
         self.staffrect = asarray(staffrect)
-    
+
     def resample(self, factor):
         return BarlinerStaff(self.staffno,
                              cast['i'](around(multiply(self.yposlist,
@@ -117,7 +118,7 @@ class BarlinerSystem(object):
     def __init__(self, ypos, systemrect):
         self.ypos = ypos
         self.systemrect = asarray(systemrect)
-        
+
     def resample(self, factor):
         return BarlinerSystem(int(round(factor * self.ypos)),
                               cast['i'](around(multiply(self.systemrect,
@@ -237,7 +238,7 @@ class Barliner(object):
             file = open(self.downsampledStavesFilename, 'w')
             pickle.dump(staves, file)
             file.close()
-        return staves            
+        return staves
 
     def getDownsampled(self):
         if os.path.exists(self.downsampledFilename):
@@ -350,7 +351,7 @@ class Barliner(object):
                                     rightBound,
                                     staff1.staffrect[3]))
                     for staff1, staff2 in zip(staves[::2], staves[1::2])]
-        
+
     def getSystems(self):
         if os.path.exists(self.systemsFilename):
             file = open(self.systemsFilename)
@@ -414,7 +415,7 @@ class Barliner(object):
                 smallPeaks = _peaks(barLineMap, self.minBarWidth * self.DPI)
                 newPeaks = reshape(barLineMap[smallPeaks],
                                    (len(barLineMap[smallPeaks]), 1))
-                codebook = cluster.vq.kmeans(newPeaks, 3) 
+                codebook = cluster.vq.kmeans(newPeaks, 3)
                 codebook = reshape(codebook[0][argsort(codebook[0], 0)], (3, 1))
                 newMap = reshape(barLineMap, (len(barLineMap), 1))
                 clusters = cluster.vq.vq(newMap, codebook)
@@ -520,7 +521,7 @@ class Barliner(object):
     downsampledBars = property(getDownsampledBars,
                                   doc='downsampled bar images')
 
-        
+
 if __name__ == "__main__":
 
     def usage():
