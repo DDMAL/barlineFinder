@@ -5,8 +5,7 @@ from django.conf.urls import patterns, include, url
 # admin.autodiscover()
 
 urlpatterns = patterns('',
-    # Examples:
-    # url(r'^$', 'baragon.views.home', name='home'),
+    url(r'^$', 'baragon.views.home', name='home'),
     # url(r'^baragon/', include('baragon.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
