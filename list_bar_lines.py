@@ -35,7 +35,6 @@ import gamera.core
 import gamera.plugins.numeric_io
 import gamera.plugins.pil_io
 import gamera.toolkits.musicstaves
-from scipy import *
 from scipy import signal
 from scipy import cluster
 from scipy import misc
