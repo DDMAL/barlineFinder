@@ -38,6 +38,7 @@ import gamera.toolkits.musicstaves
 from scipy import *
 from scipy import signal
 from scipy import cluster
+from scipy import misc
 
 def _peaks(signal, width=3):
     # Finds the indices of the peaks in a signal.
