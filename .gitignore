@@ -18,6 +18,9 @@ develop-eggs
 # ignore the development sqlite db
 baragon.db
 
+# ignore image uploads on the local filesystem
+baragon/media/
+
 # Installer logs
 pip-log.txt
 
