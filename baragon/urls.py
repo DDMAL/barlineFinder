@@ -1,4 +1,5 @@
 from django.conf.urls import patterns, include, url
+from django.conf import settings
 
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
@@ -6,6 +7,8 @@ from django.conf.urls import patterns, include, url
 
 urlpatterns = patterns('',
     url(r'^$', 'baragon.views.home', name='home'),
+    url(r'^upload/', 'baragon.views.upload', name='upload'),
+    url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT})
     # url(r'^baragon/', include('baragon.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
