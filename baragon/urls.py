@@ -8,6 +8,7 @@ from django.conf import settings
 urlpatterns = patterns('',
     url(r'^$', 'baragon.views.home', name='home'),
     url(r'^upload/', 'baragon.views.upload', name='upload'),
+    url(r'^workbench/', 'baragon.views.workbench', name='workbench'),
     url(r'^media/(?P<path>.*)$', 'django.views.static.serve', {'document_root': settings.MEDIA_ROOT})
     # url(r'^baragon/', include('baragon.foo.urls')),
 
