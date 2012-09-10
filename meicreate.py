@@ -87,85 +87,43 @@ class BarlineDataConverter:
         surface = MeiElement('surface')
 
         # generate staff group
-        parser = nestedExpr()
-        sg_list = parser.parseString(sg_hint).asList()[0]
-        staff_grp, n = self._create_staff_group(sg_list, MeiElement('staffGrp'), 0)
-        if self.verbose:
-            print "number of staves: %d" % n
+        sg_hint = sg_hint.split(" ")
+        staff_grps = []
+        for s in sg_hint:
+            parser = nestedExpr()
+            sg_list = parser.parseString(s).asList()[0]
+            staff_grp, n = self._create_staff_group(sg_list, MeiElement('staffGrp'), 0)
+            staff_grps.append(staff_grp)
+            if self.verbose:
+                print "number of staves in system: %d" % n
+
+        # there are hidden staves in a system
+        # make the encoded staff group the largest number of staves in a system
+        final_staff_grp = staff_grps[0]
+        if len(staff_grps) > 1:
+            final_staff_grp = max(staff_grps, key=lambda x: len(x.getDescendantsByName('staffDef')))
 
         mei.addChild(music)
         music.addChild(facsimile)
         facsimile.addChild(surface)
         
-        # get bounding box information of staves
-        layout = MeiElement('layout')
-        page = MeiElement('page')
-        music.addChild(layout)
-        layout.addChild(page)
-
-        # this encoding will work for one-staff systems like in liber
-        # TODO: find out how to attach facs data to an individual staff in a system
+        # list of staff bounding boxes within a system
+        staves = []
         with open(self.staff_input_path, 'r') as staff_output:
             for staff_bb in staff_output:
                 # get bounding box of the staff
-                staff_bb = staff_bb.split("\t")[1:]
-                zone = self._create_zone(staff_bb[0], staff_bb[1], staff_bb[2], staff_bb[3])
-                surface.addChild(zone)
-                system = MeiElement('system')
-                system.addAttribute('facs', zone.getId())
-                page.addChild(system)
+                # remove new line
+                staff_bb = filter(lambda x: x != "\n", staff_bb.split("\t")[1:-2])
+                # parse bounding box integers
+                #staff_bb = [int(x) for x in staff_bb]
+                staves.append(staff_bb)
         
         music.addChild(body)
         body.addChild(mdiv)
         mdiv.addChild(score)
         score.addChild(score_def)
-        score_def.addChild(staff_grp)
+        score_def.addChild(final_staff_grp)
         score.addChild(section)
-
-        staff_defs = staff_grp.getDescendantsByName('staffDef')
-        system_refs = page.getChildrenByName('system')
-        with open(self.bar_input_path, 'r') as bar_output:
-            cur_staff = None
-            cur_layer = None
-            cur_staff_num = 0
-            for i, barline in enumerate(bar_output):
-                barline = barline.split("\t")
-
-                staff_num = int(barline[0])
-                if staff_num != cur_staff_num:
-                    # a new staff or system
-                    if cur_staff is None or staff_num % len(staff_defs) != 0:
-                        # a new staff
-                        cur_staff = MeiElement('staff')
-                        cur_staff.addAttribute('n', str(staff_num % len(staff_defs) + 1))
-                        cur_layer = MeiElement('layer')
-                        cur_layer.addAttribute('n', '1')
-                        if staff_num == 1:
-                            sb = self._create_sb(system_refs, staff_num)
-                            cur_layer.addChild(sb)
-
-                        section.addChild(cur_staff)
-                        cur_staff.addChild(cur_layer)
-                    else:
-                        # a new system break
-                        sb = self._create_sb(system_refs, staff_num)
-                        cur_layer.addChild(sb)
-
-                cur_staff_num = staff_num
-                        
-                ulx = barline[1]
-                uly = barline[2]
-                lrx = barline[3]
-                lry = barline[4]
-
-                barline = MeiElement('barLine')
-                zone = self._create_zone(ulx, uly, lrx, lry)
-                surface.addChild(zone)
-                barline.addAttribute('facs', zone.getId())
-                cur_layer.addChild(barline)
-
-            if self.verbose:
-                print "%d barlines processed." % i
 
     def output_mei(self, output_path):
         '''
@@ -197,6 +155,17 @@ class BarlineDataConverter:
 
             return self._create_staff_group(sg_list[1:], staff_grp, n)
 
+    def _create_staff(self, n, zone):
+        '''
+        Create a staff element, and attach a zone reference to it
+        '''
+
+        staff = MeiElement('staff')
+        staff.addAttribute('n', str(n))
+        staff.addAttribute('facs', zone.getId())
+
+        return staff
+
     def _create_sb(self, system_refs, staff_num):
         '''
         Create a system break element and attach it to a system reference
@@ -214,10 +183,10 @@ class BarlineDataConverter:
         '''
 
         zone = MeiElement('zone')
-        zone.addAttribute('ulx', ulx)
-        zone.addAttribute('uly', uly)
-        zone.addAttribute('lrx', lrx)
-        zone.addAttribute('lry', lry)
+        zone.addAttribute('ulx', str(ulx))
+        zone.addAttribute('uly', str(uly))
+        zone.addAttribute('lrx', str(lrx))
+        zone.addAttribute('lry', str(lry))
 
         return zone
 
