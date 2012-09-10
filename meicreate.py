@@ -134,6 +134,76 @@ class BarlineDataConverter:
         score_def.addChild(final_staff_grp)
         score.addChild(section)
 
+        # parse barline data file [staffnum][barlinenum_ulx]
+        barlines = []
+        with open(self.bar_input_path, 'r') as bar_output:
+            for i, bar in enumerate(bar_output):
+                bar = bar.split("\t")
+                staff_num = int(bar[0])
+                ulx = bar[1]
+                try:
+                    barlines[staff_num-1].append(ulx)
+                except IndexError:
+                    barlines.append([ulx])
+
+        staff_offset = 0
+        n_measure = 1
+        # for each system
+        for s_ind, s in enumerate(systems):
+            # measures in a system
+            s_measures = []
+            staff_defs = s.getDescendantsByName('staffDef')
+            # for each staff in the system
+            for i in range(len(staff_defs)):
+                staff_num = staff_offset + i
+                s_bb = staves[staff_num]
+                # bounding box of the staff
+                s_ulx = s_bb[0]
+                s_uly = s_bb[1]
+                s_lrx = s_bb[2]
+                s_lry = s_bb[3]
+
+                # for each barline on this staff
+                staff_bars = barlines[staff_num]
+                for n, b in enumerate(staff_bars):
+                    # calculate bounding box of the measure
+                    if n == 0:
+                        m_ulx = s_ulx
+                    else:
+                        m_ulx = staff_bars[n-1]
+
+                    m_uly = s_uly
+                    m_lry = s_lry
+
+                    if n == len(staff_bars)-1:
+                        m_lrx = s_lrx
+                    else:
+                        m_lrx = b
+
+                    # create staff element
+                    zone = self._create_zone(m_ulx, m_uly, m_lrx, m_lry)
+                    surface.addChild(zone)
+                    staff = self._create_staff(str(i+1), zone)
+                    
+                    try:
+                        s_measures[n].addChild(staff)
+                    except IndexError:
+                        # create a new measure
+                        # TODO: calculate min/max of measure/staff bounding boxes to get measure zone
+                        zone = self._create_zone(0,0,0,0)
+                        measure = self._create_measure(str(n_measure), zone)
+                        s_measures.append(measure)
+                        section.addChild(measure)
+                        measure.addChild(staff)
+                        n_measure += 1
+
+            staff_offset += len(staff_defs)
+
+            # add a system break, if necessary
+            if s_ind+1 < len(systems):
+                sb = MeiElement('sb')
+                section.addChild(sb)
+
     def output_mei(self, output_path):
         '''
         Write the generated mei to disk
@@ -175,16 +245,16 @@ class BarlineDataConverter:
 
         return staff
 
-    def _create_sb(self, system_refs, staff_num):
+    def _create_measure(self, n, zone):
         '''
-        Create a system break element and attach it to a system reference
+        Create a measure element and attach a zone reference to it
         '''
 
-        sb = MeiElement('sb')
-        sb.addAttribute('systemref', str(system_refs[staff_num-1].getId()))
-        sb.addAttribute('n', str(staff_num))
+        measure = MeiElement('measure')
+        measure.addAttribute('n', str(n))
+        measure.addAttribute('facs', zone.getId())
 
-        return sb
+        return measure
 
     def _create_zone(self, ulx, uly, lrx, lry):
         '''
