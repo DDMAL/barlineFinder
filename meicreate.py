@@ -31,6 +31,7 @@ python meicreate.py -b ../Results/N_10_D_kl_Baermann_GA_cl_002_bar_position_1.tx
 import argparse
 from pyparsing import nestedExpr
 import os
+import re
 
 from pymei import MeiDocument, MeiElement, XmlExport
 
@@ -86,22 +87,30 @@ class BarlineDataConverter:
         facsimile = MeiElement('facsimile')
         surface = MeiElement('surface')
 
-        # generate staff group
+        # parse staff group hint to generate staff group
         sg_hint = sg_hint.split(" ")
-        staff_grps = []
+        systems = []
         for s in sg_hint:
             parser = nestedExpr()
             sg_list = parser.parseString(s).asList()[0]
             staff_grp, n = self._create_staff_group(sg_list, MeiElement('staffGrp'), 0)
-            staff_grps.append(staff_grp)
-            if self.verbose:
-                print "number of staves in system: %d" % n
 
-        # there are hidden staves in a system
+            # parse repeating staff groups (systems)
+            num_sb = 1
+            match = re.search('(?<=x)(\d+)$', s)
+            if match is not None:
+                # there are multiple systems of this staff grouping
+                num_sb = int(match.group(0))
+            
+            for i in range(num_sb):
+                systems.append(staff_grp)
+
+            if self.verbose:
+                print "number of staves in system: %d x %d system(s)" % (n, num_sb)
+
+        # there may be hidden staves in a system
         # make the encoded staff group the largest number of staves in a system
-        final_staff_grp = staff_grps[0]
-        if len(staff_grps) > 1:
-            final_staff_grp = max(staff_grps, key=lambda x: len(x.getDescendantsByName('staffDef')))
+        final_staff_grp = max(systems, key=lambda x: len(x.getDescendantsByName('staffDef')))
 
         mei.addChild(music)
         music.addChild(facsimile)
