@@ -25,11 +25,11 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 Sample usage:
-python meicreate.py -b ../Results/N_10_D_kl_Baermann_GA_cl_002_bar_position_1.txt -s ../Results/N_10_D_kl_Baermann_GA_cl_002_staff_vertices.txt -f detmoldbars.mei -g '(1)' -v    
+python meicreate.py -b C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009_bar_position_2.txt -s C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009_staff_vertices.txt -f detmoldbars.mei -g '(2|)x2 (4(2|))' -v    
 """
 
 import argparse
-from pyparsing import nestedExpr
+from pyparsing import nestedExpr, nums, OneOrMore, oneOf, Word
 import os
 import re
 import sys
@@ -92,7 +92,6 @@ class BarlineDataConverter:
         sg_hint = sg_hint.split(" ")
         systems = []
         for s in sg_hint:
-            # TODO: parse '|' symbol for the barThru attribute on a staffGrp
             parser = nestedExpr()
             sg_list = parser.parseString(s).asList()[0]
             staff_grp, n = self._create_staff_group(sg_list, MeiElement('staffGrp'), 0)
@@ -283,6 +282,13 @@ class BarlineDataConverter:
                 new_staff_grp, n = self._create_staff_group(sg_list[0], MeiElement('staffGrp'), n)
                 staff_grp.addChild(new_staff_grp)
             else:
+                # check for barthrough character
+                if sg_list[0][-1] == '|':
+                    # the barlines go through all the staves in the staff group
+                    staff_grp.addAttribute('barthru', 'true')
+                    # remove the barthrough character, should now only be an integer
+                    sg_list[0] = sg_list[0][:-1]
+
                 n_staff_defs = int(sg_list[0])
                 # get current staffDef number
                 for i in range(n_staff_defs):
