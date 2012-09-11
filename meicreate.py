@@ -32,6 +32,7 @@ import argparse
 from pyparsing import nestedExpr
 import os
 import re
+import sys
 
 from pymei import MeiDocument, MeiElement, XmlExport
 
@@ -183,19 +184,21 @@ class BarlineDataConverter:
                     # create staff element
                     zone = self._create_zone(m_ulx, m_uly, m_lrx, m_lry)
                     surface.addChild(zone)
+                    # TODO: take into consideration hidden staves
                     staff = self._create_staff(str(i+1), zone)
                     
                     try:
                         s_measures[n].addChild(staff)
                     except IndexError:
                         # create a new measure
-                        # TODO: calculate min/max of measure/staff bounding boxes to get measure zone
-                        zone = self._create_zone(0,0,0,0)
-                        measure = self._create_measure(str(n_measure), zone)
+                        measure = self._create_measure(str(n_measure))
                         s_measures.append(measure)
                         section.addChild(measure)
                         measure.addChild(staff)
                         n_measure += 1
+
+            # calculate min/max of measure/staff bounding boxes to get measure zone
+            self._calc_measure_zone(s_measures)
 
             staff_offset += len(staff_defs)
 
@@ -211,6 +214,37 @@ class BarlineDataConverter:
 
         # output mei file
         XmlExport.meiDocumentToFile(self.meidoc, output_path)
+ 
+    def _calc_measure_zone(self, measures):
+        # for each measure
+        for m in measures:
+            staff_measure_zones = []
+            min_ulx = sys.maxint
+            min_uly = sys.maxint
+            max_lrx = -sys.maxint - 1
+            max_lry = -sys.maxint - 1
+            for s in m.getChildrenByName('staff'):
+                s_zone = self.meidoc.getElementById(s.getAttribute('facs').value)
+                ulx = int(s_zone.getAttribute('ulx').value)
+                if ulx < min_ulx:
+                    min_ulx = ulx
+
+                uly = int(s_zone.getAttribute('uly').value)
+                if uly < min_uly:
+                    min_uly = uly
+
+                lrx = int(s_zone.getAttribute('lrx').value)
+                if lrx > max_lrx:
+                    max_lrx = lrx
+
+                lry = int(s_zone.getAttribute('lry').value)
+                if lry > max_lry:
+                    max_lry = lry
+
+            m_zone = self._create_zone(min_ulx, min_uly, max_lrx, max_lry)
+            m.addAttribute('facs', m_zone.getId())
+            surface = self.meidoc.getElementsByName('surface')[0]
+            surface.addChild(m_zone)
 
     def _create_staff_group(self, sg_list, staff_grp, n):
         '''
@@ -245,14 +279,19 @@ class BarlineDataConverter:
 
         return staff
 
-    def _create_measure(self, n, zone):
+    def _create_measure(self, n, zone = None):
         '''
-        Create a measure element and attach a zone reference to it
+        Create a measure element and attach a zone reference to it.
+        The zone element is optional, since the zone of the measure is
+        calculated once all of the staves within a measure have been added
+        to the MEI.
         '''
 
         measure = MeiElement('measure')
         measure.addAttribute('n', str(n))
-        measure.addAttribute('facs', zone.getId())
+
+        if zone is not None:
+            measure.addAttribute('facs', zone.getId())
 
         return measure
 
