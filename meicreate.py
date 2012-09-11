@@ -92,6 +92,7 @@ class BarlineDataConverter:
         sg_hint = sg_hint.split(" ")
         systems = []
         for s in sg_hint:
+            # TODO: parse '|' symbol for the barThru attribute on a staffGrp
             parser = nestedExpr()
             sg_list = parser.parseString(s).asList()[0]
             staff_grp, n = self._create_staff_group(sg_list, MeiElement('staffGrp'), 0)
@@ -184,9 +185,14 @@ class BarlineDataConverter:
                     # create staff element
                     zone = self._create_zone(m_ulx, m_uly, m_lrx, m_lry)
                     surface.addChild(zone)
-                    # TODO: take into consideration hidden staves
-                    staff = self._create_staff(str(i+1), zone)
+                    if len(sg_hint) == 1 or len(staff_defs) == len(final_staff_grp.getDescendantsByName('staffDef')):
+                        staff_n = str(i+1)    
+                    else:
+                        # take into consideration hidden staves
+                        staff_n = i + self._calc_staff_num(len(staff_defs), [final_staff_grp])
                     
+                    staff = self._create_staff(staff_n, zone)
+
                     try:
                         s_measures[n].addChild(staff)
                     except IndexError:
@@ -207,15 +213,34 @@ class BarlineDataConverter:
                 sb = MeiElement('sb')
                 section.addChild(sb)
 
-    def output_mei(self, output_path):
+    def _calc_staff_num(self, num_staves, staff_grps):
         '''
-        Write the generated mei to disk
+        In the case where there are hidden staves,
+        search for the correct staff number within the staff
+        group definition.
         '''
 
-        # output mei file
-        XmlExport.meiDocumentToFile(self.meidoc, output_path)
- 
+        if len(staff_grps) == 0:
+            # termination condition (or no match found)
+            return 0
+        else:
+            sg_staves = staff_grps[0].getChildrenByName('staffDef')
+            sgs = staff_grps[0].getChildrenByName('staffGrp')
+            if num_staves == len(sg_staves):
+                # no need to look at subsequent staff groups
+                n = int(sg_staves[0].getAttribute('n').value)
+            else:
+                n = self._calc_staff_num(num_staves, sgs)
+
+            return n + self._calc_staff_num(num_staves, staff_grps[1:])
+        
     def _calc_measure_zone(self, measures):
+        '''
+        Calculate the bounding box of the provided measures
+        by calculating the min and max of the bounding boxes
+        of the staves which compose the measure.
+        '''
+
         # for each measure
         for m in measures:
             staff_measure_zones = []
@@ -307,6 +332,14 @@ class BarlineDataConverter:
         zone.addAttribute('lry', str(lry))
 
         return zone
+
+    def output_mei(self, output_path):
+        '''
+        Write the generated mei to disk
+        '''
+
+        # output mei file
+        XmlExport.meiDocumentToFile(self.meidoc, output_path)
 
 if __name__ == "__main__":
     # parse command line arguments
