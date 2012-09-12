@@ -195,13 +195,15 @@ def bar_candidate_check(bar_candidates, stf_position):
             continue 
 
         # discards a candidate if it lies at the left of the closest staff
-        # for k, sp in enumerate(stf_position):
-        #     if bc.offset_y + ( bc.nrows - 1 ) / 2 > sp[2]:
-        #         continue
-        #     elif bc.offset_x * 1.3 < stf_position[k-1][1]:
-        #         passes = False
-        #         lg.debug("Discarded {0} SP:{1}".format(bc, stf_position[k-1][1]))
-        #         break
+        for j, sp in enumerate(stf_position):
+            if bc.offset_y > sp[2]:
+                continue
+            elif bc.offset_x < stf_position[j-1][1]:
+                passes = False
+                # lg.debug("Discarded {0} SP:{1}".format(bc, stf_position[j-1][1]))
+                break
+            else:
+                break
 
         # Checks if bar candidate ul position lies within a stf_position
         for k, sp in enumerate(stf_position):
@@ -211,12 +213,8 @@ def bar_candidate_check(bar_candidates, stf_position):
                 passes = True
                 break
 
-        # for sp in system_position:
-        #     if bc.offset_x < sp[1] or bc.offset_x > sp[3]:
-        #         passes = False
-
         if passes == True:      
-            checked_bars.append([bc, i[0]])
+            checked_bars.append([bc, j+1])
 
     # Inserts bars at the beginning of each staff according to the staff x-position
     # for stf in stf_position:
