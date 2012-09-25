@@ -22,18 +22,18 @@ class MeiCombiner:
         output_mei_path {String}: output file path of type .mei
         '''
 
-        self.input_mei_paths = input_mei_paths
-        self.output_mei_path = output_mei_path
-        if len(self.input_mei_paths):
-            self.meidoc = XmlImport.documentFromFile(self.input_mei_paths[0])
+        self._input_mei_paths = input_mei_paths
+        self._output_mei_path = output_mei_path
+        if len(self._input_mei_paths):
+            self._meidoc = XmlImport.documentFromFile(self._input_mei_paths[0])
         else:
-            self.meidoc = None
+            self._meidoc = None
 
     def combine(self):
-        if self.meidoc and len(input_mei_paths) > 1:
-            base_facsimile = self.meidoc.getElementsByName('facsimile')[0]
-            base_section = self.meidoc.getElementsByName('section')[0]
-            for f in self.input_mei_paths[1:]:
+        if self._meidoc and len(input_mei_paths) > 1:
+            base_facsimile = self._meidoc.getElementsByName('facsimile')[0]
+            base_section = self._meidoc.getElementsByName('section')[0]
+            for f in self._input_mei_paths[1:]:
                 mei = XmlImport.documentFromFile(f)
 
                 # combine surface
@@ -73,7 +73,7 @@ class MeiCombiner:
         change = MeiElement('change')
 
         # get last change number
-        changes = self.meidoc.getElementsByName('change')
+        changes = self._meidoc.getElementsByName('change')
         if len(changes):
             last_change = int(changes[-1].getAttribute('n').value)
 
@@ -84,7 +84,7 @@ class MeiCombiner:
         change_desc = MeiElement('changeDesc')
         ref = MeiElement('ref')
         p = MeiElement('p')
-        application = self.meidoc.getElementsByName('application')
+        application = self._meidoc.getElementsByName('application')
         app_name = 'RODAN/barlineFinder'
         if len(application):
             ref.addAttribute('target', '#'+application[0].getId())
@@ -96,7 +96,7 @@ class MeiCombiner:
         date = MeiElement('date')
         date.setValue(today)
 
-        revision_descs = self.meidoc.getElementsByName('revisionDesc')
+        revision_descs = self._meidoc.getElementsByName('revisionDesc')
         if len(revision_descs):
             revision_descs[0].addChild(change)
             change.addChild(resp_stmt)
@@ -106,8 +106,11 @@ class MeiCombiner:
             change.addChild(date)
 
     def write_mei(self):
-        if self.meidoc:
-            XmlExport.meiDocumentToFile(self.meidoc, self.output_mei_path)
+        if self._meidoc:
+            XmlExport.meiDocumentToFile(self._meidoc, self._output_mei_path)
+
+    def get_mei(self):
+        return self._meidoc
 
 if __name__ == "__main__":
     # parse command line arguments
