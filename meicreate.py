@@ -29,10 +29,11 @@ python meicreate.py -b C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009_bar_position_2.txt -s 
 """
 
 import argparse
-from pyparsing import nestedExpr, nums, OneOrMore, oneOf, Word
+from pyparsing import nestedExpr
 import os
 import re
 import sys
+import datetime
 
 from pymei import MeiDocument, MeiElement, XmlExport
 
@@ -50,13 +51,13 @@ class BarlineDataConverter:
     to MEI.
     '''
 
-    def __init__(self, bar_input_path, staff_input_path, verbose):
+    def __init__(self, staff_bb, bar_bb, verbose):
         '''
         Initialize the converter
         '''
 
-        self.bar_input_path = bar_input_path
-        self.staff_input_path = staff_input_path
+        self.staff_bb = staff_bb
+        self.bar_bb = bar_bb
         self.verbose = verbose
 
     def bardata_to_mei(self, sg_hint):
@@ -71,7 +72,7 @@ class BarlineDataConverter:
         ###########################
         #         MetaData        #
         ###########################
-        mei_head = MeiElement('meiHead')
+        mei_head = self._create_header()
         mei.addChild(mei_head)
 
         ###########################
@@ -87,6 +88,12 @@ class BarlineDataConverter:
         # physical location data
         facsimile = MeiElement('facsimile')
         surface = MeiElement('surface')
+
+        image_path = 'test_path.tiff'
+        image_height = '1024'
+        image_width = '768'
+        graphic = self._create_graphic(image_path, image_height, image_width)
+        surface.addChild(graphic)
 
         # parse staff group hint to generate staff group
         sg_hint = sg_hint.split(" ")
@@ -119,14 +126,11 @@ class BarlineDataConverter:
         
         # list of staff bounding boxes within a system
         staves = []
-        with open(self.staff_input_path, 'r') as staff_output:
-            for staff_bb in staff_output:
-                # get bounding box of the staff
-                # remove new line
-                staff_bb = filter(lambda x: x != "\n", staff_bb.split("\t")[1:-2])
-                # parse bounding box integers
-                #staff_bb = [int(x) for x in staff_bb]
-                staves.append(staff_bb)
+        for staff_bb in self.staff_bb:
+            # get bounding box of the staff
+            # parse bounding box integers
+            #staff_bb = [int(x) for x in staff_bb]
+            staves.append(staff_bb[1:])
         
         music.addChild(body)
         body.addChild(mdiv)
@@ -137,15 +141,13 @@ class BarlineDataConverter:
 
         # parse barline data file [staffnum][barlinenum_ulx]
         barlines = []
-        with open(self.bar_input_path, 'r') as bar_output:
-            for i, bar in enumerate(bar_output):
-                bar = bar.split("\t")
-                staff_num = int(bar[0])
-                ulx = bar[1]
-                try:
-                    barlines[staff_num-1].append(ulx)
-                except IndexError:
-                    barlines.append([ulx])
+        for i, bar in enumerate(self.bar_bb):
+            staff_num = int(bar[0])
+            ulx = bar[1]
+            try:
+                barlines[staff_num-1].append(ulx)
+            except IndexError:
+                barlines.append([ulx])
 
         staff_offset = 0
         n_measure = 1
@@ -248,7 +250,8 @@ class BarlineDataConverter:
             max_lrx = -sys.maxint - 1
             max_lry = -sys.maxint - 1
             for s in m.getChildrenByName('staff'):
-                s_zone = self.meidoc.getElementById(s.getAttribute('facs').value)
+                # have to skip # at the beginning of the id ref since using URIs
+                s_zone = self.meidoc.getElementById(s.getAttribute('facs').value[1:])
                 ulx = int(s_zone.getAttribute('ulx').value)
                 if ulx < min_ulx:
                     min_ulx = ulx
@@ -266,9 +269,99 @@ class BarlineDataConverter:
                     max_lry = lry
 
             m_zone = self._create_zone(min_ulx, min_uly, max_lrx, max_lry)
-            m.addAttribute('facs', m_zone.getId())
+            m.addAttribute('facs', '#'+m_zone.getId())
             surface = self.meidoc.getElementsByName('surface')[0]
             surface.addChild(m_zone)
+
+    def _create_header(self, rodan_version='0.1'):
+        '''
+        Create a meiHead element
+        '''
+
+        mei_head = MeiElement('meiHead')
+        today = datetime.date.today().isoformat()
+
+        app_name = 'RODAN/barlineFinder'
+
+        # file description
+        file_desc = MeiElement('fileDesc')
+
+        title_stmt = MeiElement('titleStmt')
+        title = MeiElement('title')
+        resp_stmt = MeiElement('respStmt')
+        corp_name = MeiElement('corpName')
+        corp_name.setValue('Distributed Digital Music Archives and Libraries Lab (DDMAL)')
+        title_stmt.addChild(title)
+        title_stmt.addChild(resp_stmt)
+        resp_stmt.addChild(corp_name)
+        
+        pub_stmt = MeiElement('pubStmt')
+        resp_stmt = MeiElement('respStmt')
+        corp_name = MeiElement('corpName')
+        corp_name.setValue('Distributed Digital Music Archives and Libraries Lab (DDMAL)')
+        pub_stmt.addChild(resp_stmt)
+        resp_stmt.addChild(corp_name)
+
+        mei_head.addChild(file_desc)
+        file_desc.addChild(title_stmt)
+        file_desc.addChild(pub_stmt)
+
+        # encoding description
+        encoding_desc = MeiElement('encodingDesc')
+        app_info = MeiElement('appInfo')
+        application = MeiElement('application')
+        application.addAttribute('version', rodan_version)
+        name = MeiElement('name')
+        name.setValue(app_name)
+        ptr = MeiElement('ptr')
+        ptr.addAttribute('target', 'https://github.com/DDMAL/barlineFinder')
+
+        mei_head.addChild(encoding_desc)
+        encoding_desc.addChild(app_info)
+        app_info.addChild(application)
+        application.addChild(name)
+        application.addChild(ptr)
+
+        # revision description
+        revision_desc = MeiElement('revisionDesc')
+        change = MeiElement('change')
+        change.addAttribute('n', '1')
+        resp_stmt = MeiElement('respStmt')
+        corp_name = MeiElement('corpName')
+        corp_name.setValue('Distributed Digital Music Archives and Libraries Lab (DDMAL)')
+        change_desc = MeiElement('changeDesc')
+        ref = MeiElement('ref')
+        ref.addAttribute('target', '#'+application.getId())
+        ref.setValue(app_name)
+        ref.setTail('.')
+        p = MeiElement('p')
+        p.addChild(ref)
+        p.setValue('Encoded using ')
+        date = MeiElement('date')
+        date.setValue(today)
+        
+        mei_head.addChild(revision_desc)
+        revision_desc.addChild(change)
+        change.addChild(resp_stmt)
+        resp_stmt.addChild(corp_name)
+        change.addChild(change_desc)
+        change_desc.addChild(p)
+        change.addChild(date)
+
+        return mei_head
+
+    def _create_graphic(self, image_path, image_height, image_width):
+        '''
+        Create a graphic element.
+        '''
+
+        graphic = MeiElement('graphic')
+        graphic.addAttribute('height', image_height)
+        graphic.addAttribute('width', image_width)
+        graphic.addAttribute('target', image_path)
+        graphic.addAttribute('unit', 'px')
+
+        return graphic
 
     def _create_staff_group(self, sg_list, staff_grp, n):
         '''
@@ -294,6 +387,7 @@ class BarlineDataConverter:
                 for i in range(n_staff_defs):
                     staff_def = MeiElement('staffDef')
                     staff_def.addAttribute('n', str(n+i+1))
+                    staff_def.addAttribute('lines', '5')
                     staff_grp.addChild(staff_def)
                 n += n_staff_defs
 
@@ -306,7 +400,7 @@ class BarlineDataConverter:
 
         staff = MeiElement('staff')
         staff.addAttribute('n', str(n))
-        staff.addAttribute('facs', zone.getId())
+        staff.addAttribute('facs', '#'+zone.getId())
 
         return staff
 
@@ -322,7 +416,7 @@ class BarlineDataConverter:
         measure.addAttribute('n', str(n))
 
         if zone is not None:
-            measure.addAttribute('facs', zone.getId())
+            measure.addAttribute('facs', '#'+zone.getId())
 
         return measure
 
