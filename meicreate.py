@@ -27,7 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Sample usage:
 python meicreate.py -b C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009_bar_position_2.txt -s C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009_staff_vertices.txt -f detmoldbars.mei -g '(2|)x2 (4(2|))' -v    
 """
-
+from __future__ import division
 import argparse
 from pyparsing import nestedExpr
 import os
@@ -60,7 +60,7 @@ class BarlineDataConverter:
         self.bar_bb = bar_bb
         self.verbose = verbose
 
-    def bardata_to_mei(self, sg_hint):
+    def bardata_to_mei(self, sg_hint, image_path, image_width, image_height, image_dpi=72):
         '''
         Perform the data conversion to mei
         '''
@@ -89,10 +89,7 @@ class BarlineDataConverter:
         facsimile = MeiElement('facsimile')
         surface = MeiElement('surface')
 
-        image_path = 'test_path.tiff'
-        image_height = '1024'
-        image_width = '768'
-        graphic = self._create_graphic(image_path, image_height, image_width)
+        graphic = self._create_graphic(image_path, image_width, image_height)
         surface.addChild(graphic)
 
         # parse staff group hint to generate staff group
@@ -151,6 +148,7 @@ class BarlineDataConverter:
 
         staff_offset = 0
         n_measure = 1
+        b1_thresh = 1.5
         # for each system
         for s_ind, s in enumerate(systems):
             # measures in a system
@@ -168,20 +166,25 @@ class BarlineDataConverter:
 
                 # for each barline on this staff
                 staff_bars = barlines[staff_num]
+                # check the first barline candidate
+                # If it is sufficiently close to the beginning of the staff then ignore it.
+                b1_x = staff_bars[0]
+                if abs(b1_x/image_dpi - s_ulx/image_dpi) < b1_thresh:
+                    del staff_bars[0]
+
                 for n, b in enumerate(staff_bars):
                     # calculate bounding box of the measure
+                    m_uly = s_uly
+                    m_lry = s_lry
+
+                    m_lrx = b
+                    if n == len(staff_bars)-1 and m_lrx > s_lrx:
+                        m_lrx = s_lrx
+
                     if n == 0:
                         m_ulx = s_ulx
                     else:
                         m_ulx = staff_bars[n-1]
-
-                    m_uly = s_uly
-                    m_lry = s_lry
-
-                    if n == len(staff_bars)-1:
-                        m_lrx = s_lrx
-                    else:
-                        m_lrx = b
 
                     # create staff element
                     zone = self._create_zone(m_ulx, m_uly, m_lrx, m_lry)
@@ -350,14 +353,14 @@ class BarlineDataConverter:
 
         return mei_head
 
-    def _create_graphic(self, image_path, image_height, image_width):
+    def _create_graphic(self, image_path, image_width, image_height):
         '''
         Create a graphic element.
         '''
 
         graphic = MeiElement('graphic')
-        graphic.addAttribute('height', image_height)
-        graphic.addAttribute('width', image_width)
+        graphic.addAttribute('height', str(image_height))
+        graphic.addAttribute('width', str(image_width))
         graphic.addAttribute('target', image_path)
         graphic.addAttribute('unit', 'px')
 

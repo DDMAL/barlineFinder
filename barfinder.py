@@ -384,6 +384,9 @@ class BarlineFinder:
 
     def process_file(self, input_file, sg_hint):
         image = load_image(input_file)
+        image_width = image.width
+        image_height = image.height
+
         # print input_file
         #Applies a mask. Greyscale image needed
         if image.pixel_type_name != 'GreyScale':
@@ -447,7 +450,7 @@ class BarlineFinder:
         numbered_bars = self._staff_number_assign(sorted_bars, staff_bb)
         # for nb in numbered_bars:
         #     print nb
-        return staff_bb, numbered_bars
+        return staff_bb, numbered_bars, image_width, image_height
 
 if __name__ == "__main__":
     init_gamera()
@@ -464,10 +467,10 @@ if __name__ == "__main__":
     verbose = args.verbose
 
     bar_finder = BarlineFinder()
-    staff_bb, bar_bb = bar_finder.process_file(input_file, sg_hint)
+    staff_bb, bar_bb, image_width, image_height = bar_finder.process_file(input_file, sg_hint)
 
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
-    bar_converter.bardata_to_mei(sg_hint)
+    bar_converter.bardata_to_mei(sg_hint, input_file, image_width, image_height)
     bar_converter.output_mei(output_file)
 
 
