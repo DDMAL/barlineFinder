@@ -384,8 +384,6 @@ class BarlineFinder:
 
     def process_file(self, input_file, sg_hint):
         image = load_image(input_file)
-        image_width = image.width
-        image_height = image.height
 
         # print input_file
         #Applies a mask. Greyscale image needed
@@ -398,14 +396,24 @@ class BarlineFinder:
 
         # Auto-rotates an image
         image = image.correct_rotation(0)
-        # image.save_tiff('/Volumes/MarkovProperty/gburlet/work/DetmoldBarFinder/barfinder-test/static/images/C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009.tiff')
+        # save the image that barline candidates are calculated from
+        # the MEI will reference this file
+        image_path = os.path.splitext(input_file.split('/')[-1])[0] + '_preprocessed.tiff'
+        image.save_tiff(image_path)
+        image_width = image.width
+        image_height = image.height
+        if image.resolution != 0:
+            image_dpi = image.resolution
+        else:
+            # set a default image dpi of 72
+            image_dpi = 72
 
         # parse the staff group hint into a list of staffGrps---one for each system
         # [staffGrps, ...]
         system_staff_groups = self._parse_staff_hint(sg_hint)
         barfinder_sg_hint = ", ".join([str(len(sg.getDescendantsByName('staffDef'))) for sg in system_staff_groups])
         system = self._system_structure_parser(barfinder_sg_hint)
-        print  system #GVM
+        # print  system #GVM
         # Returns the vertices for each staff and its number
         stf_position = self._staff_line_position(image)
         
@@ -436,7 +444,7 @@ class BarlineFinder:
         # print 'CHECKED_BARS:{0}'.format(checked_bars)
         
         RGB_image = self._highlight(image, checked_bars)
-        output_path = './output_images/{0}'.format(input_file.split('/')[-1])
+        output_path = os.path.splitext(input_file.split('/')[-1])[0] + '_candidates.tiff'
         RGB_image.save_tiff(output_path) #GVM
         # RGB_image.save_tiff('./output_images/C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009_bars.tiff') 
         bar_list = []
@@ -450,7 +458,7 @@ class BarlineFinder:
         numbered_bars = self._staff_number_assign(sorted_bars, staff_bb)
         # for nb in numbered_bars:
         #     print nb
-        return staff_bb, numbered_bars, image_width, image_height
+        return staff_bb, numbered_bars, image_path, image_width, image_height, image_dpi
 
 if __name__ == "__main__":
     init_gamera()
@@ -467,10 +475,10 @@ if __name__ == "__main__":
     verbose = args.verbose
 
     bar_finder = BarlineFinder()
-    staff_bb, bar_bb, image_width, image_height = bar_finder.process_file(input_file, sg_hint)
+    staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint)
 
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
-    bar_converter.bardata_to_mei(sg_hint, input_file, image_width, image_height)
+    bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
     bar_converter.output_mei(output_file)
 
 
