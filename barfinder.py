@@ -264,7 +264,7 @@ class BarlineFinder:
                             grouped_bars = __bar_candidate_grouping(grouped_bars) # until all candidates have been glued
                         # print 'CL_IM: {0}'.format(grouped_bars)
                         bars.append(grouped_bars[0])
-
+ 
                     elif len(brok_cand) == 1 and brok_cand[0].nrows < (system_height):
                         continue
 
@@ -392,7 +392,7 @@ class BarlineFinder:
         image = self._border_removal(image)
 
         # Binarizes image
-        binarized_image = image.to_onebit()
+        image = image.to_onebit()
 
         # Auto-rotates an image
         image = image.correct_rotation(0)
@@ -435,7 +435,7 @@ class BarlineFinder:
         self._despeckle(no_staff_image)
 
         # Filters short-runs
-        mfr = binarized_image.most_frequent_run('black', 'vertical')
+        mfr = image.most_frequent_run('black', 'vertical')
         filtered_image = self._most_frequent_run_filter(no_staff_image, mfr)    # most_frequent_run
 
         # cc's and highlighs no staff and shrot runs filtered image and writes txt file with candidate bars
@@ -446,7 +446,7 @@ class BarlineFinder:
         RGB_image = self._highlight(image, checked_bars)
         output_path = os.path.splitext(input_file.split('/')[-1])[0] + '_candidates.tiff'
         RGB_image.save_tiff(output_path) #GVM
-        # RGB_image.save_tiff('./output_images/C_07a_ED-Kl_1_A-Wn_SHWeber90_S_009_bars.tiff') 
+
         bar_list = []
         # print "CHECKED_BARS: {0}\n\n".format(checked_bars) #GVM
         for c in checked_bars:
@@ -480,6 +480,3 @@ if __name__ == "__main__":
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
     bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
     bar_converter.output_mei(output_file)
-
-
-
