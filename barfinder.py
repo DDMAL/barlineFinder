@@ -29,6 +29,18 @@ parser.add_argument('filein', help='input file (.tiff)')
 parser.add_argument('fileout', help='output file (.mei)')
 parser.add_argument('-v', '--verbose', help='increase output verbosity', action='store_true')
 
+class StaffGroupMismatch(Exception):
+    '''
+    Custom exception that is raised when the number of staves entered
+    by the user does not equal that found by the staff finding algorithm
+    '''
+
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+
 class BarlineFinder:
 
     def _border_removal(self, image):
@@ -38,19 +50,6 @@ class BarlineFinder:
         mask_border = image.border_removal(3, 5, 5, 0.8, 6.0, 0.8, 6.0, 0.25, 15, 23, 75, 45, 15)
         masked_image = image.mask(mask_border)
         return masked_image
-
-    def _binarize(self, filepath):
-        """
-        """
-
-        if input_image.pixel_type_name == 'GreyScale':
-            binarized_image = input_image.abutaleb_threshold(0)
-        elif input_image.pixel_type_name == 'RGB':
-            binarized_image = i.djvu_threshold(0.2, 512, 64, 2)
-        else:
-            binarized_image = input_image
-        return binarized_image
-
 
     def _staffline_removal(self, image):
         """
@@ -143,7 +142,6 @@ class BarlineFinder:
         # Padding right edge of all staves bounding boxes
         # for stf in stf_position:
         #     stf[3] = stf[3]+10
-
 
         return stf_position
 
@@ -291,8 +289,6 @@ class BarlineFinder:
                     # print 'BAR POSITION: {0}'.format(staff)
                     numbered_bars.append((staff[0], bar[1], staff[2], bar[3], staff[4]))
         return numbered_bars
-        
-
 
     def _bar_sorting(self, bar_vector):
         """
@@ -406,7 +402,7 @@ class BarlineFinder:
         stf_position = self._staff_line_position(image, image_dpi)
         
         if len(stf_position) != len(system):
-            print 'Number of recognized staves is different to the one entered by the user'
+            raise StaffGroupMismatch('Number of recognized staves is different to the one entered by the user')
 
         # Appends the proper system number according to the user input
         for i, s in enumerate(stf_position):
@@ -422,7 +418,6 @@ class BarlineFinder:
         no_staff_image = self._staffline_removal(image)
         self._despeckle(no_staff_image)
         no_staff_image.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_no_stafflines.tiff')
-
 
         # Filters short-runs
         mfr = image.most_frequent_run('black', 'vertical')
