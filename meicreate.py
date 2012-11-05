@@ -166,7 +166,11 @@ class BarlineDataConverter:
                 s_lry = s_bb[3]
 
                 # for each barline on this staff
-                staff_bars = barlines[staff_num]
+                try:
+                    staff_bars = barlines[staff_num]
+                except IndexError:
+                    # a staff was found, but no bar candidates have been found on the staff
+                    continue
 
                 # check the first barline candidate
                 # If it is sufficiently close to the beginning of the staff then ignore it.
