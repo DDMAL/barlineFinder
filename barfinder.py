@@ -28,6 +28,8 @@ parser.add_argument('-g', '--staffgroups', help='staffgroups')
 parser.add_argument('filein', help='input file (.tiff)')
 parser.add_argument('fileout', help='output file (.mei)')
 parser.add_argument('-v', '--verbose', help='increase output verbosity', action='store_true')
+parser.add_argument('-nb', '--noborderremove', help='do not remove borders automatically', action='store_true')
+parser.add_argument('-nr', '--norotation', help='do not automatically rotate', action='store_true')
 
 class StaffGroupMismatch(Exception):
     '''
@@ -366,20 +368,34 @@ class BarlineFinder:
             RGB_image.highlight(c[0], RGBPixel(255, 0, 0))
         return RGB_image
 
-    def process_file(self, input_file, sg_hint):
+    def process_file(self, input_file, sg_hint, noborderremove=False, norotation=False):
+        '''
+        Find measures in the given input file.
+
+        PARAMETERS
+        ----------
+        sg_hint: staff group hint inputted manually by the user
+        noborderremove: flag to specify whether the automatic border removal algorithm should be used
+        norotation: flag to specify whether the automatic rotation algorithm should be used
+        '''
+
         image = load_image(input_file)
 
-        # print input_file
-        #Applies a mask. Greyscale image needed
-        if image.pixel_type_name != 'GreyScale':
-            image = image.to_greyscale()
-        image = self._border_removal(image)
+        # since they want to be able to disclude this step from the workflow on the command line
+        if not noborderremove:
+            #Applies a mask. Greyscale image needed
+            if image.pixel_type_name != 'GreyScale':
+                image = image.to_greyscale()
+            image = self._border_removal(image)
 
         # Binarizes image
         image = image.to_onebit()
 
-        # Auto-rotates an image
-        image = image.correct_rotation(0)
+        # since they want to be able to disclude this step from the workflow
+        if not norotation:
+            # Auto-rotates an image
+            image = image.correct_rotation(0)
+
         # save the image that barline candidates are calculated from
         # the MEI will reference this file
         image_path = os.path.splitext(input_file.split('/')[-1])[0] + '_preprocessed.tiff'
@@ -458,9 +474,11 @@ if __name__ == "__main__":
     output_file = args.fileout
     sg_hint = args.staffgroups
     verbose = args.verbose
+    noborderremove = args.noborderremove
+    norotation = args.norotation
 
     bar_finder = BarlineFinder()
-    staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint)
+    staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint, noborderremove, norotation)
 
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
     bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
