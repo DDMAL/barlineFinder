@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012, Gregory Burlet
+Copyright (c) 2013, Gregory Burlet
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ class EvaluateMeasureFinder(object):
         PARAMETERS
         ----------
         bb_padding_in (float): measure bounding box padding (inches). 
-                               Any measure withing the padding is assumed correct.
+                               Any measure within the padding is assumed correct.
         log (bool): create a log file of the results in the same directory
         '''
 
