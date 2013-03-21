@@ -96,25 +96,51 @@ class BarlineFinder:
         [(staff_number, x1, y1, x2, y2)], starting from number 1
         """
 
-        stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
-        stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
-        polygon = stf_instance.get_polygon()
-        sc_position = [] # staff candidate
-        stf_position = []
+        try:
+            # using miyao as first alternative
+            stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
+            stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
+            polygon = stf_instance.get_polygon()
+            sc_position = [] # staff candidate
+            stf_position = []
+
+            for i, p in enumerate(polygon):
+                ul = p[0].vertices[0]
+                ur = p[0].vertices[-1]
+                ll = p[len(p)-1].vertices[0]
+                lr = p[len(p)-1].vertices[-1]
+
+                x1 = ul.x
+                y1 = ul.y
+                x2 = lr.x
+                y2 = lr.y
+                sc_position.append([i + 1, x1, y1, x2, y2])
+            # print 'MIYAO'
+        except:
+            # using dalitz' method if miyao fails
+            # print 'DALITZ'
+            stf_instance = musicstaves.StaffFinder_dalitz(image, 0, 0)
+            stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
+            skeleton = stf_instance.get_skeleton()
+            for i, p in enumerate(skeleton):
+                x1 = p[0].left_x
+                y_list = p[0].y_list
+                if y_list[0] > y_list[-1]:
+                    y1 = y_list[-1]
+                else:
+                    y1 = y_list[0]
+
+                x2 = x1 + len(p[0].y_list)
+                y_list = p[-1].y_list
+                if y_list[0] > y_list[-1]:
+                    y2 = y_list[-1]
+                else:
+                    y2 = y_list[0]
 
 
-        for i, p in enumerate(polygon):
-            ul = p[0].vertices[0]
-            ur = p[0].vertices[-1]
-            ll = p[len(p)-1].vertices[0]
-            lr = p[len(p)-1].vertices[-1]
-
-            x1 = ul.x
-            y1 = ul.y
-            x2 = lr.x
-            y2 = lr.y
-            sc_position.append([i + 1, x1, y1, x2, y2])
-
+        
+                sc_position.append([i + 1, x1, y1, x2, y2])
+        print sc_position
         # Glueing the output of the Miyao staff finder
         stf_position.append((sc_position[0]))
         j = 1
