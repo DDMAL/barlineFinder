@@ -123,24 +123,29 @@ class BarlineFinder:
             stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
             skeleton = stf_instance.get_skeleton()
             for i, p in enumerate(skeleton):
+                
                 x1 = p[0].left_x
-                y_list = p[0].y_list
-                if y_list[0] > y_list[-1]:
-                    y1 = y_list[-1]
-                else:
-                    y1 = y_list[0]
-
                 x2 = x1 + len(p[0].y_list)
-                y_list = p[-1].y_list
+
+                y_list = p[0].y_list
+
                 if y_list[0] > y_list[-1]:
-                    y2 = y_list[-1]
+                    y_list_last = [y.y_list[-1] for y in p]
+                    y1 = min(y_list_last)
+                    y_list_first = [y.y_list[0] for y in p]
+                    y2 = max(y_list_first)
+
                 else:
-                    y2 = y_list[0]
+                    y_list_first = [y.y_list[0] for y in p]
+                    y1 = min(y_list_first)
+                    y_list_last = [y.y_list[-1] for y in p]
+                    y2 = max(y_list_last)
 
 
+                # print y_list_first, y_list_last
         
                 sc_position.append([i + 1, x1, y1, x2, y2])
-        print sc_position
+        # print sc_position
         # Glueing the output of the Miyao staff finder
         stf_position.append((sc_position[0]))
         j = 1
