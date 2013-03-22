@@ -121,6 +121,7 @@ class EvaluateMeasureFinder(object):
         '''
         num_images = 0
         cur_image = 1
+        num_errors = 0
         for dirpath, dirnames, filenames in os.walk(self.datapath):
             if len(dirnames):
                 num_images = len(dirnames)
@@ -143,12 +144,17 @@ class EvaluateMeasureFinder(object):
                     sg_hint = self._get_sg_hint(sg_hint_file_path)
 
                     # run the measure finding algorithm and write the output to mei
-                    bar_finder = BarlineFinder()
-                    staff_bb, bar_bb, _, image_width, image_height, image_dpi = bar_finder.process_file(image_path, sg_hint)
+                    try:
+                        bar_finder = BarlineFinder()
+                        staff_bb, bar_bb, _, image_width, image_height, image_dpi = bar_finder.process_file(image_path, sg_hint)
 
-                    bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
-                    bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
-                    bar_converter.output_mei(mei_path)
+                        bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
+                        bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
+                        bar_converter.output_mei(mei_path)
+                    except:
+                        # there was an error with the measure finding algorithm
+                        num_errors += 1
+                        continue
                 else:
                     # still need the image dpi
                     image = load_image(image_path)
@@ -174,8 +180,10 @@ class EvaluateMeasureFinder(object):
                 cur_image += 1
 
         logging.info("Done experiment.")
+        logging.info("Number of errors: %d" % num_errors)
         if self.verbose:
             print "Done experiment."
+            print "Number of errors: %d" % num_errors
 
         avg_precision = np.mean(precision)
         avg_recall = np.mean(recall)
