@@ -95,15 +95,14 @@ class BarlineFinder:
         Returns a vector with the vertices for each staff with the form 
         [(staff_number, x1, y1, x2, y2)], starting from number 1
         """
-
+        sc_position = [] # staff candidate
+        stf_position = []
+        
         try:
             # using miyao as first alternative
             stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
             stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
             polygon = stf_instance.get_polygon()
-            sc_position = [] # staff candidate
-            stf_position = []
-
             for i, p in enumerate(polygon):
                 ul = p[0].vertices[0]
                 ur = p[0].vertices[-1]
@@ -115,10 +114,10 @@ class BarlineFinder:
                 x2 = lr.x
                 y2 = lr.y
                 sc_position.append([i + 1, x1, y1, x2, y2])
-            # print 'MIYAO'
+            print 'MIYAO'
         except:
             # using dalitz' method if miyao fails
-            # print 'DALITZ'
+            print 'DALITZ'
             stf_instance = musicstaves.StaffFinder_dalitz(image, 0, 0)
             stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
             skeleton = stf_instance.get_skeleton()
@@ -215,10 +214,7 @@ class BarlineFinder:
 
         checked_bars = []
         stf_height = sum([i[4]-i[2] for i in stf_position])/len(stf_position)
-
-
         system_bb = self._system_position_parser(stf_position)    
-
         no_sys =  len(system_bb) 
 
         def __within_bb_check(bc, bb):
@@ -238,11 +234,16 @@ class BarlineFinder:
             """
             for bar in ungrouped_bars:
                 bar.classify_heuristic('_group._part.bc')
+
             cknn = knn.kNNInteractive()
             cknn.set_glyphs(ungrouped_bars)
             grouped_bars = cknn.group_and_update_list_automatic(ungrouped_bars, \
                         max_parts_per_group = 10, \
                         grouping_function = BoundingBoxGroupingFunction(5000)) # Threshold distance in pixels between bounding boxes 
+            
+            if len(grouped_bars) < 1:
+                grouped_bars.append(bar)
+            # print 'BAR:{0}\nGROUPED_BARS:{1}'.format(bar, grouped_bars)
             return grouped_bars
 
         # 2. Discard bar_candidates outside of all system_bb
@@ -272,16 +273,20 @@ class BarlineFinder:
 
                 brok_cand = [x[0] for x in sys_bar if \
                         (s[0].offset_x > (x[0].offset_x - factor * bc_av_width) and \
-                         s[0].offset_x < (x[0].offset_x + factor * bc_av_width))] # This should be dependant the number of staves per system
+                         s[0].offset_x < (x[0].offset_x + factor * bc_av_width))] # This should be dependent on the number of staves per system
 
                 if not brok_cand in brok_cand_list: # if it is not already in the list of broken bar candidates
                     brok_cand_list.append(brok_cand)
-                    # print system_height, brok_cand
+                    # print "SYSTEM HEIGHT: {0}, BROK_CAND:{1}".format(system_height, brok_cand)
                     if len(brok_cand) > 1:   
 
                         grouped_bars = __bar_candidate_grouping(brok_cand)
+
                         while len(grouped_bars) > 1:
-                            grouped_bars = __bar_candidate_grouping(grouped_bars) # until all candidates have been glued
+
+                            grouped_bars = __bar_candidate_grouping(grouped_bars) # run until all candidates have been glued
+
+                        # print 'GROUPED BARS:{0}'.format(grouped_bars[0])
                         if system_height > 0.9 * grouped_bars[0].nrows: # if system height is taller than grouped BC -10%
                             bars.append(grouped_bars[0])
                         else: 
@@ -442,8 +447,11 @@ class BarlineFinder:
         # parse the staff group hint into a list of staffGrps---one for each system
         # [staffGrps, ...]
         system_staff_groups = self._parse_staff_hint(sg_hint)
+
         barfinder_sg_hint = ", ".join([str(len(sg.getDescendantsByName('staffDef'))) for sg in system_staff_groups])
         system = self._system_structure_parser(barfinder_sg_hint)
+
+        print "SG HINT:{0}\nSYSTEM:{1}".format(sg_hint, system) #GVM
 
         # Returns the vertices for each staff and its number
         stf_position = self._staff_line_position(image, image_dpi)
