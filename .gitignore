@@ -36,3 +36,4 @@ pip-log.txt
 .mr.developer.cfg
 
 *.tiff
+/detmold_images_list.xlsx
