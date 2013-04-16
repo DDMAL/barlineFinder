@@ -100,8 +100,10 @@ class EvaluateMeasureFinder(object):
         if log:
             logging.basicConfig(format='%(message)s', filename=log, filemode='w', level=logging.DEBUG)
             logging.info("Beginning experiment.")
+            logging.info("Parameters: bb_padding_in=%.2f" % bb_padding_in)
             if self.verbose:
                 print "Beginning experiment."
+                print "Parameters: bb_padding_in=%.2f" % bb_padding_in
 
         precision = []
         recall = []
@@ -111,12 +113,14 @@ class EvaluateMeasureFinder(object):
         process all image files. Assumes the directory structure is:
         > dataroot/1
         >> filename.tiff        (music score image)
-        >> filename_gt.mei      (ground-truth mei file)
+        >> filename.mei         (ground-truth mei file)
+        >> filename_ao.mei      (algorithm MEI output)
         >> filename.txt         (staff group hint)
         ...
         > dataroot/N
         >> filename.tiff        (music score image)
-        >> filename_gt.mei      (ground-truth mei file)
+        >> filename.mei         (ground-truth mei file)
+        >> filename_ao.mei      (algorithm MEI output)
         >> filename.txt         (staff group hint)
         '''
         num_images = 0
@@ -135,8 +139,8 @@ class EvaluateMeasureFinder(object):
                 filename, _ = os.path.splitext(f)
                 image_path = os.path.join(dirpath, f)
                 sg_hint_file_path = os.path.join(dirpath, filename+'.txt')
-                gt_mei_path = os.path.join(dirpath, filename+'_gt.mei')
-                mei_path = os.path.join(dirpath, filename+'.mei')
+                gt_mei_path = os.path.join(dirpath, filename+'.mei')
+                mei_path = os.path.join(dirpath, filename+'_ao.mei')
 
                 # if the algorithm has not been run already, run it
                 if not os.path.exists(mei_path):
@@ -247,18 +251,30 @@ class EvaluateMeasureFinder(object):
         # compare each measure bounding box estimate to the ground truth
         # deleting after to ensure no double counting.
         for abb in alg_bb:
-            for i, gbb in enumerate(gt_bb):
+            for i in range(len(gt_bb)-1,-1,-1):
                 # check if it is nearby a ground-truth measure bounding box
-                if (abs(abb['ulx']-gbb['ulx']) <= bb_padding_px and 
-                    abs(abb['uly']-gbb['uly']) <= bb_padding_px and 
-                    abs(abb['lrx']-gbb['lrx']) <= bb_padding_px and
-                    abs(abb['lry']-gbb['lry']) <= bb_padding_px):
+                if (abs(abb['ulx']-gt_bb[i]['ulx']) <= bb_padding_px and 
+                    abs(abb['uly']-gt_bb[i]['uly']) <= bb_padding_px and 
+                    abs(abb['lrx']-gt_bb[i]['lrx']) <= bb_padding_px and
+                    abs(abb['lry']-gt_bb[i]['lry']) <= bb_padding_px):
                     r += 1
-                    del gbb[i]
+                    del gt_bb[i]
                     break
 
-        p = r / num_alg_measures
-        r /= num_gt_measures
+        if num_alg_measures > 0:
+            p = r / num_alg_measures
+        else:
+            if self.verbose:
+                print '[WARNING]: no algorithm output measures found'
+            p = 0
+        
+        if num_gt_measures > 0:
+            r /= num_gt_measures
+        else:
+            if self.verbose:
+                print '[WARNING]: no ground-truth measures found'
+            r = 1
+
         f = calc_fmeasure(p,r)
 
         return p, r, f
@@ -270,5 +286,5 @@ if __name__ == "__main__":
     verbose = args.verbose
 
     emf = EvaluateMeasureFinder(dataroot, verbose)
-    bb_padding_in = 0.05
+    bb_padding_in = 0.5
     emf.evaluate(bb_padding_in, 'experimentlog.txt')
