@@ -13,13 +13,18 @@ if __name__ == "__main__":
         img_files = [f for f in filenames if f.endswith('.tiff')]
         gt_files = [f for f in filenames if f.endswith('.mei') and not f.endswith('_ao.mei')]
         ao_files = [f for f in filenames if f.endswith('_ao.mei')]
+        txt_files.sort()
+        img_files.sort()
+        gt_files.sort()
+        ao_files.sort()
 
         if len(txt_files) != len(img_files) != len(gt_files) != len(ao_files):
             raise ValueError('number of files do not match up')
 
         # for each datapoint
         for i in range(len(img_files)):
-            datapoint_path = os.path.join(output_dataroot, '%d' % (i+1))
+            datapoint_number = ('%d' % (i+1)).zfill(3)
+            datapoint_path = os.path.join(output_dataroot, datapoint_number)
             os.makedirs(datapoint_path)
 
             i_txt_file = os.path.join(input_dataroot, txt_files[i])
