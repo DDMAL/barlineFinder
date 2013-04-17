@@ -124,66 +124,60 @@ class EvaluateMeasureFinder(object):
         >> filename_ao.mei      (algorithm MEI output)
         >> filename.txt         (staff group hint)
         '''
-        num_images = 0
-        cur_image = 1
         num_errors = 0
-        for dirpath, dirnames, filenames in os.walk(self.datapath):
-            if len(dirnames):
-                num_images = len(dirnames)
+        data_points = [d for d in os.listdir(self.datapath) if os.path.isdir(os.path.join(self.datapath, d))]
+        for i, d in enumerate(data_points):
+            data_point_path = os.path.join(self.datapath, d)
 
-            filenames = [f for f in filenames if f.endswith(".tiff") and not f.endswith("._preprocessed.tiff")]
-            for f in filenames:
-                if self.verbose:
-                    print "processing music score (%d/%d): %s" % (cur_image, num_images, f)
-                logging.info("processing music score (%d/%d): %s" % (cur_image, num_images, f))
+            if self.verbose:
+                print "processing music score (%d/%d)" % (i+1, len(data_points))
+            logging.info("processing music score (%d/%d)" % (i+1, len(data_points)))
 
-                filename, _ = os.path.splitext(f)
-                image_path = os.path.join(dirpath, f)
-                sg_hint_file_path = os.path.join(dirpath, filename+'.txt')
-                gt_mei_path = os.path.join(dirpath, filename+'.mei')
-                mei_path = os.path.join(dirpath, filename+'_ao.mei')
+            data_files = [os.path.join(data_point_path, f) for f in os.listdir(data_point_path)]
+            image_path = [f for f in data_files if f.endswith('.tiff')][0]
+            sg_hint_file_path = [f for f in data_files if f.endswith('.txt')][0]
+            gt_mei_path = [f for f in data_files if f.endswith('.mei') and not f.endswith('_ao.mei')][0]
+            mei_path = [f for f in data_files if f.endswith('_ao.mei')][0]
 
-                # if the algorithm has not been run already, run it
-                if not os.path.exists(mei_path):
-                    # get staff group hint
-                    sg_hint = self._get_sg_hint(sg_hint_file_path)
+            # if the algorithm has not been run already, run it
+            if not os.path.exists(mei_path):
+                # get staff group hint
+                sg_hint = self._get_sg_hint(sg_hint_file_path)
 
-                    # run the measure finding algorithm and write the output to mei
-                    try:
-                        bar_finder = BarlineFinder()
-                        staff_bb, bar_bb, _, image_width, image_height, image_dpi = bar_finder.process_file(image_path, sg_hint)
+                # run the measure finding algorithm and write the output to mei
+                try:
+                    bar_finder = BarlineFinder()
+                    staff_bb, bar_bb, _, image_width, image_height, image_dpi = bar_finder.process_file(image_path, sg_hint)
 
-                        bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
-                        bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
-                        bar_converter.output_mei(mei_path)
-                    except:
-                        # there was an error with the measure finding algorithm
-                        num_errors += 1
-                        continue
-                else:
-                    # still need the image dpi (in the x plane)
-                    image = Image.open(image_path)
-                    image_dpi = image.info['dpi'][0]
-                    if image_dpi == 0:
-                        # set a default image dpi of 72
-                        logging.info('[WARNING] manually setting img resolution to 72')
-                        print '[WARNING] manually setting img resolution to 72'
-                        image_dpi = 72
+                    bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
+                    bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
+                    bar_converter.output_mei(mei_path)
+                except:
+                    # there was an error with the measure finding algorithm
+                    num_errors += 1
+                    continue
+            else:
+                # still need the image dpi (in the x plane)
+                image = Image.open(image_path)
+                image_dpi = image.info['dpi'][0]
+                if image_dpi == 0:
+                    # set a default image dpi of 72
+                    logging.info('[WARNING] manually setting img resolution to 72')
+                    print '[WARNING] manually setting img resolution to 72'
+                    image_dpi = 72
 
-                # calculate number of pixels the padding is
-                bb_padding_px = bb_padding_in * image_dpi
+            # calculate number of pixels the padding is
+            bb_padding_px = bb_padding_in * image_dpi
 
-                p, r, f = self._evaluate_output(mei_path, gt_mei_path, bb_padding_px)
-                if verbose:
-                    print '\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f)
-                logging.info('\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f))
+            p, r, f = self._evaluate_output(mei_path, gt_mei_path, bb_padding_px)
+            if verbose:
+                print '\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f)
+            logging.info('\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f))
 
-                # keep track of global experiment results
-                precision.append(p)
-                recall.append(r)
-                fmeasure.append(f)
-
-                cur_image += 1
+            # keep track of global experiment results
+            precision.append(p)
+            recall.append(r)
+            fmeasure.append(f)
 
         logging.info("Done experiment.")
         logging.info("Number of errors: %d" % num_errors)
