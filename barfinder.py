@@ -438,10 +438,14 @@ class BarlineFinder:
         image.save_tiff(image_path)
         image_width = image.width
         image_height = image.height
-        if image.resolution != 0:
-            image_dpi = image.resolution
-        else:
+
+        # use PIL to get image resolution in the x dimension
+        # because it is more reliable than gamera
+        pil_image = PIL.Image.open(image_path)
+        image_dpi = pil_image.info['dpi'][0]
+        if image_dpi == 0:
             # set a default image dpi of 72
+            print "Manually setting image dpi to 72"
             image_dpi = 72
 
         # parse the staff group hint into a list of staffGrps---one for each system

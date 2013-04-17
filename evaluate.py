@@ -41,6 +41,7 @@ import os
 import logging
 import argparse
 import numpy as np
+from PIL import Image
 
 # set up command line argument structure
 parser = argparse.ArgumentParser(description='Perform experiment reporting performance of the measure finding algorithm.')
@@ -160,12 +161,13 @@ class EvaluateMeasureFinder(object):
                         num_errors += 1
                         continue
                 else:
-                    # still need the image dpi
-                    image = load_image(image_path)
-                    if image.resolution != 0:
-                        image_dpi = image.resolution
-                    else:
+                    # still need the image dpi (in the x plane)
+                    image = Image.open(image_path)
+                    image_dpi = image.info['dpi'][0]
+                    if image_dpi == 0:
                         # set a default image dpi of 72
+                        logging.info('[WARNING] manually setting img resolution to 72')
+                        print '[WARNING] manually setting img resolution to 72'
                         image_dpi = 72
 
                 # calculate number of pixels the padding is
