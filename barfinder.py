@@ -441,7 +441,7 @@ class BarlineFinder:
 
         # use PIL to get image resolution in the x dimension
         # because it is more reliable than gamera
-        pil_image = PIL.Image.open(image_path)
+        pil_image = PIL.Image.open(input_file)
         image_dpi = pil_image.info['dpi'][0]
         if image_dpi == 0:
             # set a default image dpi of 72
