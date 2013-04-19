@@ -164,17 +164,18 @@ class BarlineDataConverter:
                 s_uly = s_bb[1]
                 s_lrx = s_bb[2]
                 s_lry = s_bb[3]
-
+                # print 'S_BB:{0}'.format(s_bb)
                 # for each barline on this staff
                 try:
                     staff_bars = barlines[staff_num]
                 except IndexError:
                     # a staff was found, but no bar candidates have been found on the staff
                     continue
-
+                
                 # check the first barline candidate
                 # If it is sufficiently close to the beginning of the staff then ignore it.
                 b1_x = staff_bars[0]
+                # print 'b1_x:{0} s_ulx:{1} calc:{2}'.format(b1_x, s_ulx, (b1_x/image_dpi - s_ulx/image_dpi))
                 if abs(b1_x/image_dpi - s_ulx/image_dpi) < b1_thresh:
                     del staff_bars[0]
 
@@ -183,6 +184,20 @@ class BarlineDataConverter:
                 bn_x = staff_bars[-1]
                 if bn_x < s_lrx and abs(bn_x/image_dpi - s_lrx/image_dpi) > bn_thresh:
                     staff_bars.append(s_lrx)
+
+                # filtering bar candidates closer than the one inch (dependent on DPI)
+                filt_staff_bars = []
+                for i, sb in enumerate(staff_bars[:-1]):
+                    if staff_bars[i+1] - staff_bars[i] < image_dpi:
+                        continue
+                    else:
+                        filt_staff_bars.append(staff_bars[i])
+                # adding the last bar candidate
+                filt_staff_bars.append(staff_bars[-1])
+                # removing first bar candidate if it lies close to the system bounding box
+                if filt_staff_bars[0] < b1_x + image_dpi:
+                    del filt_staff_bars[0]
+                staff_bars = filt_staff_bars
 
                 for n, b in enumerate(staff_bars):
                     # calculate bounding box of the measure
