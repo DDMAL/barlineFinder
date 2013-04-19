@@ -69,7 +69,7 @@ class BarlineFinder:
         """
         """
         filtered_image = image.image_copy()
-        filtered_image.filter_short_runs(mfr + 2, 'black') # most frequent run plus 1 pixel
+        filtered_image.filter_short_runs(mfr + 5, 'black') # most frequent run plus 1 pixel
         filtered_image.despeckle(100)
         return filtered_image
 
@@ -197,7 +197,7 @@ class BarlineFinder:
                 system_bb.append(sp)
         return system_bb
 
-    def _bar_candidate_check(self, bar_candidates, stf_position, system):
+    def _bar_candidate_check(self, bar_candidates, stf_position, system, image_dpi):
         """
         Several methods to discard and/or validate bar candidates:
 
@@ -298,7 +298,18 @@ class BarlineFinder:
                         bars.append(s[0])
             for bc in bars:
                 checked_bars.append((bc, sys_bar_idx+1))
-        return checked_bars 
+        
+        # Check for candidates much smaller than staff height (1 DPI-dependent inch)
+        super_checked = []
+        for cb in checked_bars:
+            # print cb
+            if cb[0].nrows < system_height - image_dpi:
+                continue
+            else:
+                super_checked.append(cb)
+
+
+        return super_checked 
 
     def _staff_number_assign(self, bars_bb, staff_bb):
         """
@@ -404,6 +415,17 @@ class BarlineFinder:
             RGB_image.highlight(c[0], RGBPixel(255, 0, 0))
         return RGB_image
 
+    # def _filter_close_bar_bb(self, sorted_bars, staff_bb, image_dpi):
+    #     # print 'A', image_dpi
+    #     for sb in sorted_bars[:]:
+    #         print sb
+    #     for st in staff_bb[:]:
+    #         print st
+
+
+        filtered_bars = sorted_bars
+        return filtered_bars
+
     def process_file(self, input_file, sg_hint, noborderremove=False, norotation=False):
         '''
         Find measures in the given input file.
@@ -484,9 +506,10 @@ class BarlineFinder:
 
         # cc's and highlighs no staff and shrot runs filtered image and writes txt file with candidate bars
         ccs_bars = self._ccs(filtered_image)
-        checked_bars = self._bar_candidate_check(ccs_bars, stf_position, system)
+        checked_bars = self._bar_candidate_check(ccs_bars, stf_position, system, image_dpi)
         # print 'CHECKED_BARS:{0}'.format(checked_bars)
         
+
         RGB_image = self._highlight(image, checked_bars)
         output_path = os.path.splitext(input_file.split('/')[-1])[0] + '_candidates.tiff'
         RGB_image.save_tiff(output_path) #GVM
@@ -497,11 +520,13 @@ class BarlineFinder:
             bar_list.append([c[1], c[0].offset_x, c[0].offset_y, c[0].offset_x+c[0].ncols-1, c[0].offset_y+c[0].nrows-1])
 
         sorted_bars = self._bar_sorting(bar_list)
+
+        # for sb in sorted_bars: print sb
+
         # print '\nSTAFF_BB:{0}\n\nBAR_BB:{1}\n'.format(staff_bb, sorted_bars)
 
         numbered_bars = self._staff_number_assign(sorted_bars, staff_bb)
-        # for nb in numbered_bars:
-        #     print nb
+        # for nb in numbered_bars: print nb
         return staff_bb, numbered_bars, image_path, image_width, image_height, image_dpi
 
 if __name__ == "__main__":
@@ -522,7 +547,7 @@ if __name__ == "__main__":
 
     bar_finder = BarlineFinder()
     staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint, noborderremove, norotation)
-
+    # print 'BAR_BB:{0}'.format(bar_bb)
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
     bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
     bar_converter.output_mei(output_file)
