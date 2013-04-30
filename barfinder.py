@@ -298,7 +298,9 @@ class BarlineFinder:
                         bars.append(s[0])
             for bc in bars:
                 checked_bars.append((bc, sys_bar_idx+1))
-        
+
+        # return checked_bars
+
         # Check for candidates much smaller than staff height (1 DPI-dependent inch)
         super_checked = []
         for cb in checked_bars:
@@ -523,10 +525,12 @@ class BarlineFinder:
 
         # for sb in sorted_bars: print sb
 
-        # print '\nSTAFF_BB:{0}\n\nBAR_BB:{1}\n'.format(staff_bb, sorted_bars)
+        print '\nSTAFF_BB:{0}\n\nBAR_BB:{1}\n'.format(staff_bb, sorted_bars)
 
         numbered_bars = self._staff_number_assign(sorted_bars, staff_bb)
-        # for nb in numbered_bars: print nb
+        
+        # for nb in numbered_bars: print 'NUMBERED BARS:{0}'.format(nb)
+        
         return staff_bb, numbered_bars, image_path, image_width, image_height, image_dpi
 
 if __name__ == "__main__":
