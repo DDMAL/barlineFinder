@@ -172,6 +172,10 @@ class BarlineDataConverter:
                     # a staff was found, but no bar candidates have been found on the staff
                     continue
 
+
+
+
+
                 # check the first barline candidate
                 # If it is sufficiently close to the beginning of the staff then ignore it.
                 b1_x = staff_bars[0]
@@ -181,34 +185,26 @@ class BarlineDataConverter:
 
                 # check the last barline candidate
                 # if there is no candidate near the end of the interior of the staff, add one
-                # bn_x = staff_bars[-1]
-                # if bn_x < s_lrx and abs(bn_x/image_dpi - s_lrx/image_dpi) > bn_thresh:
-                #     staff_bars.append(s_lrx)
+                bn_x = staff_bars[-1]
+                if bn_x < s_lrx and abs(bn_x/image_dpi - s_lrx/image_dpi) > bn_thresh:
+                    staff_bars.append(s_lrx)
 
-                # for sb in staff_bars: print 'SB_PRE:{0}'.format(sb)
-
-
-
-
-
-
-                # # filtering bar candidates closer than the one inch (dependent on DPI)
-                # filt_staff_bars = []
-                # for i, sb in enumerate(staff_bars[:-1]):
-                #     if staff_bars[i+1] - staff_bars[i] < image_dpi:
-                #         continue
+                # filtering bar candidates closer than the one inch (dependent on DPI)
+                filt_staff_bars = []
+                for i, sb in enumerate(staff_bars[:-1]):
+                    if staff_bars[i+1] - staff_bars[i] < image_dpi:
+                        continue
                     
-                #     filt_staff_bars.append(staff_bars[i])
-                # # adding the last bar candidate
-                # filt_staff_bars.append(staff_bars[-1])
+                    filt_staff_bars.append(staff_bars[i])
+                # adding the last bar candidate
+                filt_staff_bars.append(staff_bars[-1])
+
+                # removing first bar candidate if it lies close to the system bounding box
+                if filt_staff_bars[0] < b1_x + image_dpi:
+                    del filt_staff_bars[0]
+                staff_bars = filt_staff_bars
 
 
-                # # for sb in filt_staff_bars: print 'SB_MID:{0}'.format(sb)
-                # # removing first bar candidate if it lies close to the system bounding box
-                # # if filt_staff_bars[0] < b1_x + image_dpi:
-                # #     del filt_staff_bars[0]
-                # # for sb in filt_staff_bars: print 'SB_POST:{0}'.format(sb)
-                # staff_bars = filt_staff_bars
 
 
 
