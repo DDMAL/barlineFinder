@@ -81,7 +81,7 @@ class BarlineFinder:
         ccs = proc_image.cc_analysis()
         ccs_bars = []
         for c in ccs:
-                if c.aspect_ratio()[0] <= 0.20 and c.ncols <= 15: # try other features and/or values
+                if c.aspect_ratio()[0] <= 0.10 and c.ncols <= 15: # try other features and/or values
                     ccs_bars.append(c)
         # lg.debug(ccs_bars)
         return ccs_bars
@@ -279,23 +279,24 @@ class BarlineFinder:
                     brok_cand_list.append(brok_cand)
                     # print "SYSTEM HEIGHT: {0}, BROK_CAND:{1}".format(system_height, brok_cand)
                     if len(brok_cand) > 1:   
-
                         grouped_bars = __bar_candidate_grouping(brok_cand)
-
                         while len(grouped_bars) > 1:
-
                             grouped_bars = __bar_candidate_grouping(grouped_bars) # run until all candidates have been glued
 
-                        # print 'GROUPED BARS:{0}'.format(grouped_bars[0])
-                        if system_height > 0.9 * grouped_bars[0].nrows: # if system height is taller than grouped BC -10%
+                        # # print 'GROUPED BARS:{0}'.format(grouped_bars[0])
+                        # if system_height > 0.6 * grouped_bars[0].nrows: # if system height is taller than grouped BC -10%
+                        #     bars.append(grouped_bars[0])
+                        # else: 
+                        #     continue
+                        print 'STAFF_HEIGHT:{0}\n'.format(stf_height)
+                        print 'SYSTEM_HEIGHT:{0}\n, GROUPED_BARS_NROWS:{1}\n'.format(system_height, grouped_bars[0].nrows)
+                        if abs(grouped_bars[0].nrows - system_height) < stf_height/2: 
                             bars.append(grouped_bars[0])
-                        else: 
-                            continue
 
-                    elif len(brok_cand) == 1 and system_height * 0.75 > brok_cand[0].nrows or brok_cand[0].ncols > 1.5 * bc_av_width: # if there is only one BC and system height is taller, discard it
-                        continue
-                    else:
-                        bars.append(s[0])
+
+
+                    bars.append(s[0])
+
             for bc in bars:
                 checked_bars.append((bc, sys_bar_idx+1))
 
@@ -318,28 +319,32 @@ class BarlineFinder:
         Assigns staff number to all bars
         """
 
-        def __within_bb_check(bar_bb, staff_bb):
-            """
-            Checks if a bar_candidate is inside a bounding_box (system or staff)
-            """
-            x_bar_range = (bar_bb[1], bar_bb[3])
-            y_bar_range = (bar_bb[2], bar_bb[4])
 
-            x_staff_range = (staff_bb[1], staff_bb[3])
-            y_staff_range = (staff_bb[2], staff_bb[4])
-
-            for y in xrange(y_bar_range[0], y_bar_range[1]+1):
-                if y_staff_range[0] < y < y_staff_range[1]:
-                    return True
 
         numbered_bars = []
         for bar in bars_bb:
             for staff_idx, staff in enumerate(staff_bb):
-                staff_check = __within_bb_check(bar, staff)
+                staff_check = self._within_bb_checker(bar, staff)
                 if staff_check == True:
                     # print 'BAR POSITION: {0}'.format(staff)
                     numbered_bars.append((staff[0], bar[1], staff[2], bar[3], staff[4]))
         return numbered_bars
+
+
+    def _within_bb_checker(self, bar_bb, staff_bb):
+        """
+        Checks if a bar_candidate is inside a bounding_box (system or staff)
+        """
+        x_bar_range = (bar_bb[1], bar_bb[3])
+        y_bar_range = (bar_bb[2], bar_bb[4])
+
+        x_staff_range = (staff_bb[1], staff_bb[3])
+        y_staff_range = (staff_bb[2], staff_bb[4])
+
+        for y in xrange(y_bar_range[0], y_bar_range[1]+1):
+            if y_staff_range[0] < y < y_staff_range[1]:
+                return True
+
 
     def _bar_sorting(self, bar_vector):
         """
