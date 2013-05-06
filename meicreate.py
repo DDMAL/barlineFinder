@@ -178,7 +178,6 @@ class BarlineDataConverter:
                 # If it is sufficiently close to the beginning of the staff then ignore it.
                 print 'STAFF_BARS:{0}'.format(staff_bars)
 
-
                 # not considering bar candidates closer than one staff height
                 new_staff_list = [x for j, x in enumerate(staff_bars[:-1]) if abs(staff_bars[j] - s_ulx)  > abs(s_uly - s_lry)]
 
@@ -187,30 +186,18 @@ class BarlineDataConverter:
                 #     if abs(sb[0]/image_dpi - s_ulx/image_dpi) < b1_thresh:
                 #         print 'deleted'
 
-
-
                 print 'NEW_STAFF_LIST:{0}'.format(new_staff_list)
                 # adding the last one only if it is not close to the staff bounding box
                 # if abs(staff_bars[-1] - s_lrx) > abs(s_uly - s_lry):
                 #     new_staff_list.append(staff_bars[-1]) 
                 
-
                 new_staff_list.append(staff_bars[-1])
-                
-
                 staff_bars = new_staff_list
                 # check the last barline candidate
                 # if there is no candidate near the end of the interior of the staff, add one
                 # bn_x = staff_bars[-1]
                 # if bn_x < s_lrx and abs(bn_x/image_dpi - s_lrx/image_dpi) > bn_thresh:
                 #     staff_bars.append(s_lrx)
-
-                # for sb in staff_bars: print 'SB_PRE:{0}'.format(sb)
-
-
-
-
-
 
                 # # filtering bar candidates closer than the one inch (dependent on DPI)
                 # filt_staff_bars = []
@@ -229,8 +216,6 @@ class BarlineDataConverter:
                 # #     del filt_staff_bars[0]
                 # # for sb in filt_staff_bars: print 'SB_POST:{0}'.format(sb)
                 # staff_bars = filt_staff_bars
-
-
 
 
                 for n, b in enumerate(staff_bars):
