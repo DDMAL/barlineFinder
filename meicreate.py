@@ -60,7 +60,7 @@ class BarlineDataConverter:
         self.bar_bb = bar_bb
         self.verbose = verbose
 
-    def bardata_to_mei(self, sg_hint, image_path, image_width, image_height, image_dpi=72):
+    def bardata_to_mei(self, sg_hint, image_path, image_width, image_height, image_dpi):
         '''
         Perform the data conversion to mei
         '''
@@ -137,6 +137,7 @@ class BarlineDataConverter:
         score.addChild(section)
 
         # parse barline data file [staffnum][barlinenum_ulx]
+        print 'SYSTEMS:{0}'.format(systems)
         barlines = []
         for i, bar in enumerate(self.bar_bb):
             staff_num = int(bar[0])
@@ -146,6 +147,7 @@ class BarlineDataConverter:
             except IndexError:
                 barlines.append([ulx])
         print 'BARLINES_X:{0}'.format(barlines)
+        print 'DPI:{0}'.format(image_dpi)
         staff_offset = 0
         n_measure = 1
         b1_thresh = 1.25
@@ -164,21 +166,39 @@ class BarlineDataConverter:
                 s_uly = s_bb[1]
                 s_lrx = s_bb[2]
                 s_lry = s_bb[3]
-                print 'S_BB {1}:{0}'.format(s_bb, i+1)
+                print '\nS_BB {1}:{0}'.format(s_bb, i+1)
                 # for each barline on this staff
                 try:
                     staff_bars = barlines[staff_num]
                 except IndexError:
                     # a staff was found, but no bar candidates have been found on the staff
                     continue
-
+                
                 # check the first barline candidate
                 # If it is sufficiently close to the beginning of the staff then ignore it.
-                b1_x = staff_bars[0]
-                # print 'b1_x:{0} s_ulx:{1} calc:{2}'.format(b1_x, s_ulx, (b1_x/image_dpi - s_ulx/image_dpi))
-                if abs(b1_x/image_dpi - s_ulx/image_dpi) < b1_thresh:
-                    del staff_bars[0]
+                print 'STAFF_BARS:{0}'.format(staff_bars)
 
+
+                # not considering bar candidates closer than one staff height
+                new_staff_list = [x for j, x in enumerate(staff_bars[:-1]) if abs(staff_bars[j] - s_ulx)  > abs(s_uly - s_lry)]
+
+                # for i, sb in enumerate(staff_bars[:-1]:
+                #     print 'b1_x:{0} s_ulx:{1} calc:{2}'.format(sb[0], s_ulx, (sb[0]/image_dpi - s_ulx/image_dpi))
+                #     if abs(sb[0]/image_dpi - s_ulx/image_dpi) < b1_thresh:
+                #         print 'deleted'
+
+
+
+                print 'NEW_STAFF_LIST:{0}'.format(new_staff_list)
+                # adding the last one only if it is not close to the staff bounding box
+                # if abs(staff_bars[-1] - s_lrx) > abs(s_uly - s_lry):
+                #     new_staff_list.append(staff_bars[-1]) 
+                
+
+                new_staff_list.append(staff_bars[-1])
+                
+
+                staff_bars = new_staff_list
                 # check the last barline candidate
                 # if there is no candidate near the end of the interior of the staff, add one
                 # bn_x = staff_bars[-1]
@@ -215,11 +235,12 @@ class BarlineDataConverter:
 
                 for n, b in enumerate(staff_bars):
                     # calculate bounding box of the measure
-                    # print 'BAR:{0}'.format(b)
+                    print 'BAR:{0}'.format(b)
                     m_uly = s_uly
                     m_lry = s_lry
 
                     m_lrx = b
+                    print 'n:{0}, m_uly:{1}, m_lry:{2}, m_lrx:{3}, len(staff_bars)-1:{4}'.format(n, m_uly, m_lry, m_lrx, len(staff_bars)-1)
                     if n == len(staff_bars)-1:
                         m_lrx = s_lrx
 
@@ -228,6 +249,7 @@ class BarlineDataConverter:
                     else:
                         m_ulx = staff_bars[n-1]
                     # create staff element
+                    print 'CREATING ZONE:{0}, {1}, {2}, {3}'.format(m_ulx, m_uly, m_lrx, m_lry)
                     zone = self._create_zone(m_ulx, m_uly, m_lrx, m_lry)
                     surface.addChild(zone)
                     if len(sg_hint) == 1 or len(staff_defs) == len(final_staff_grp.getDescendantsByName('staffDef')):
