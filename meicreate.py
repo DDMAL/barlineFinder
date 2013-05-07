@@ -161,7 +161,7 @@ class BarlineDataConverter:
                 s_uly = s_bb[1]
                 s_lrx = s_bb[2]
                 s_lry = s_bb[3]
-                print 'A:', i, s_ulx, s_uly, s_lrx, s_lry
+
                 # for each barline on this staff
                 try:
                     staff_bars = barlines[staff_num]
@@ -169,13 +169,13 @@ class BarlineDataConverter:
                     # a staff was found, but no bar candidates have been found on the staff
                     continue
 
-                for n, b in enumerate(staff_bars):
+                # for each barline on this staff
+                for n, b in enumerate(staff_bars[:-1]):
                     # calculate bounding box of the measure
-                    # print b
                     m_uly = s_uly
                     m_lry = s_lry
-                    m_lrx = b
-                    m_ulx = staff_bars[n-1]
+                    m_ulx = b
+                    m_lrx = staff_bars[n+1]
 
                     zone = self._create_zone(m_ulx, m_uly, m_lrx, m_lry)
                     surface.addChild(zone)
@@ -183,10 +183,10 @@ class BarlineDataConverter:
                         staff_n = str(i+1)    
                     else:
                         # take into consideration hidden staves
-                        staff_n = i + self._calc_staff_num(len(staff_defs), [final_staff_grp])
+                        staff_n = i + self._calc_staff_num(len(staff_defs), [final_staff_grp]) + 1
                     
                     staff = self._create_staff(staff_n, zone)
-                    print '  ', staff_n, m_ulx, m_uly, m_lrx, m_lry
+                    #print '  ', staff_n, m_ulx, m_uly, m_lrx, m_lry
                     try:
                         s_measures[n].addChild(staff)
                     except IndexError:
