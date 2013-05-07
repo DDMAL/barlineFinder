@@ -243,7 +243,7 @@ class BarlineFinder:
             return grouped_bars
 
         # 1. filter by aspect ratio
-        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.5]# and bc.ncols <=15]
+        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.1]# and bc.ncols <=15]
         # aspect_ratio = [bc.aspect_ratio() for bc in bar_candidates]
         # print aspect_ratio
 
@@ -568,7 +568,7 @@ class BarlineFinder:
 
 
         # print ccs_bars
-        image_ccs_mfr = self._highlight(filtered_image, [[c] for c in ccs_bars if c.aspect_ratio()[0] <= 0.05])
+        image_ccs_mfr = self._highlight(filtered_image, [[c] for c in ccs_bars if c.aspect_ratio()[0] <= 0.1])
         image_ccs_mfr.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_ccs_mfr.tiff')
 
         checked_bars = self._bar_candidate_check(ccs_bars, stf_position, system, image_dpi)
