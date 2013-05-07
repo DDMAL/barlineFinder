@@ -241,8 +241,10 @@ class BarlineFinder:
             return grouped_bars
 
         # 1. filter by aspect ratio
-        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.10 and bc.ncols <=15]
-        # print 'BC:{0}'.format(bar_candidates)
+        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.5]# and bc.ncols <=15]
+        # aspect_ratio = [bc.aspect_ratio() for bc in bar_candidates]
+        # print aspect_ratio
+
         # 2. Discard bar_candidates outside of all system_bb(filtering by middle position)
         filt_bar_candidates = []
         bc_av_width = 0
@@ -253,7 +255,10 @@ class BarlineFinder:
                     filt_bar_candidates.append([bc, bb[5]])
                     bc_av_width += bc.ncols
                     break
-        bc_av_width = bc_av_width/len(filt_bar_candidates) # Bar candidate average width
+        try:
+            bc_av_width = bc_av_width/len(filt_bar_candidates) # Bar candidate average width
+        except ZeroDivisionError:
+            pass
 
         # print 'filt_bar_candidates:{0}'.format(filt_bar_candidates)
         
@@ -566,7 +571,7 @@ class BarlineFinder:
 
 
         # print ccs_bars
-        image_ccs_mfr = self._highlight(filtered_image, [[c] for c in ccs_bars])
+        image_ccs_mfr = self._highlight(filtered_image, [[c] for c in ccs_bars if c.aspect_ratio()[0] <= 0.05])
         image_ccs_mfr.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_ccs_mfr.tiff')
 
         checked_bars = self._bar_candidate_check(ccs_bars, stf_position, system, image_dpi)
