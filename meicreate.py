@@ -1,5 +1,5 @@
 """
-Copyright (c) 2012, Gregory Burlet
+Copyright (c) 2013, Gregory Burlet
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -137,7 +137,6 @@ class BarlineDataConverter:
         score.addChild(section)
 
         # parse barline data file [staffnum][barlinenum_ulx]
-        print 'SYSTEMS:{0}'.format(systems)
         barlines = []
         for i, bar in enumerate(self.bar_bb):
             staff_num = int(bar[0])
@@ -146,13 +145,9 @@ class BarlineDataConverter:
                 barlines[staff_num-1].append(ulx)
             except IndexError:
                 barlines.append([ulx])
-        print 'BARLINES_X:{0}'.format(barlines)
-        print 'DPI:{0}'.format(image_dpi)
+
         staff_offset = 0
         n_measure = 1
-        b1_thresh = 1.25
-        bn_thresh = 1.25
-        # for each system
         for s_ind, s in enumerate(systems):
             # measures in a system
             s_measures = []
@@ -166,75 +161,22 @@ class BarlineDataConverter:
                 s_uly = s_bb[1]
                 s_lrx = s_bb[2]
                 s_lry = s_bb[3]
-                print '\nS_BB {1}:{0}'.format(s_bb, i+1)
+                print 'A:', i, s_ulx, s_uly, s_lrx, s_lry
                 # for each barline on this staff
                 try:
                     staff_bars = barlines[staff_num]
                 except IndexError:
                     # a staff was found, but no bar candidates have been found on the staff
                     continue
-                
-                # check the first barline candidate
-                # If it is sufficiently close to the beginning of the staff then ignore it.
-                print 'STAFF_BARS:{0}'.format(staff_bars)
-
-                # not considering bar candidates closer than one staff height
-                new_staff_list = [x for j, x in enumerate(staff_bars[:-1]) if abs(staff_bars[j] - s_ulx)  > abs(s_uly - s_lry)]
-
-                # for i, sb in enumerate(staff_bars[:-1]:
-                #     print 'b1_x:{0} s_ulx:{1} calc:{2}'.format(sb[0], s_ulx, (sb[0]/image_dpi - s_ulx/image_dpi))
-                #     if abs(sb[0]/image_dpi - s_ulx/image_dpi) < b1_thresh:
-                #         print 'deleted'
-
-                print 'NEW_STAFF_LIST:{0}'.format(new_staff_list)
-                # adding the last one only if it is not close to the staff bounding box
-                # if abs(staff_bars[-1] - s_lrx) > abs(s_uly - s_lry):
-                #     new_staff_list.append(staff_bars[-1]) 
-                
-                new_staff_list.append(staff_bars[-1])
-                staff_bars = new_staff_list
-                # check the last barline candidate
-                # if there is no candidate near the end of the interior of the staff, add one
-                # bn_x = staff_bars[-1]
-                # if bn_x < s_lrx and abs(bn_x/image_dpi - s_lrx/image_dpi) > bn_thresh:
-                #     staff_bars.append(s_lrx)
-
-                # # filtering bar candidates closer than the one inch (dependent on DPI)
-                # filt_staff_bars = []
-                # for i, sb in enumerate(staff_bars[:-1]):
-                #     if staff_bars[i+1] - staff_bars[i] < image_dpi:
-                #         continue
-                    
-                #     filt_staff_bars.append(staff_bars[i])
-                # # adding the last bar candidate
-                # filt_staff_bars.append(staff_bars[-1])
-
-
-                # # for sb in filt_staff_bars: print 'SB_MID:{0}'.format(sb)
-                # # removing first bar candidate if it lies close to the system bounding box
-                # # if filt_staff_bars[0] < b1_x + image_dpi:
-                # #     del filt_staff_bars[0]
-                # # for sb in filt_staff_bars: print 'SB_POST:{0}'.format(sb)
-                # staff_bars = filt_staff_bars
-
 
                 for n, b in enumerate(staff_bars):
                     # calculate bounding box of the measure
-                    print 'BAR:{0}'.format(b)
+                    # print b
                     m_uly = s_uly
                     m_lry = s_lry
-
                     m_lrx = b
-                    print 'n:{0}, m_uly:{1}, m_lry:{2}, m_lrx:{3}, len(staff_bars)-1:{4}'.format(n, m_uly, m_lry, m_lrx, len(staff_bars)-1)
-                    if n == len(staff_bars)-1:
-                        m_lrx = s_lrx
+                    m_ulx = staff_bars[n-1]
 
-                    if n == 0:
-                        m_ulx = s_ulx
-                    else:
-                        m_ulx = staff_bars[n-1]
-                    # create staff element
-                    print 'CREATING ZONE:{0}, {1}, {2}, {3}'.format(m_ulx, m_uly, m_lrx, m_lry)
                     zone = self._create_zone(m_ulx, m_uly, m_lrx, m_lry)
                     surface.addChild(zone)
                     if len(sg_hint) == 1 or len(staff_defs) == len(final_staff_grp.getDescendantsByName('staffDef')):
@@ -244,7 +186,7 @@ class BarlineDataConverter:
                         staff_n = i + self._calc_staff_num(len(staff_defs), [final_staff_grp])
                     
                     staff = self._create_staff(staff_n, zone)
-
+                    print '  ', staff_n, m_ulx, m_uly, m_lrx, m_lry
                     try:
                         s_measures[n].addChild(staff)
                     except IndexError:
@@ -254,7 +196,7 @@ class BarlineDataConverter:
                         section.addChild(measure)
                         measure.addChild(staff)
                         n_measure += 1
-            # print 'S-MEASURES:{0}'.format(s_measures)
+
             # calculate min/max of measure/staff bounding boxes to get measure zone
             self._calc_measure_zone(s_measures)
 
