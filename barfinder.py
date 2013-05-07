@@ -45,7 +45,9 @@ class StaffGroupMismatch(Exception):
 
 class BarlineFinder:
 
-    def __init__(self, verbose):
+    def __init__(self, ar_thresh=0.1, v_thresh=0.66, verbose=False):
+        self.ar_thresh = ar_thresh
+        self.v_thresh = v_thresh
         self.verbose = verbose
 
     def _border_removal(self, image):
@@ -202,6 +204,12 @@ class BarlineFinder:
         to the staff position by the Miyao staff finder.
 
         Returns a vector in the form: [[gameracore.Image, staff_no]]
+
+        PARAMETERS
+        ----------
+        ar_thresh (Float): threshold parameter for aspect ratio of bar candidates
+        v_thresh (Float): threshold parameter for the percentage of the staff height for bar candidates
+                          to be within the system bounding box (y dimension)
         """
 
         checked_bars = []
@@ -243,7 +251,7 @@ class BarlineFinder:
             return grouped_bars
 
         # 1. filter by aspect ratio
-        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.025]# and bc.ncols <=15]
+        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= self.ar_thresh]# and bc.ncols <=15]
         if not len(bar_candidates):
             # if all candidates have been filtered, no need to filter more
             return []
@@ -309,7 +317,7 @@ class BarlineFinder:
             bc_y2 = cb[0].offset_y + cb[0].nrows
             bb_y1 = system_bb[cb[1]-1][2]
             bb_y2 = system_bb[cb[1]-1][4]
-            tolerance = float(2)/3 * stf_height #tolerance dependent on 
+            tolerance = self.v_thresh * stf_height #tolerance dependent on 
 
             if abs(bc_y1 - bb_y1) > tolerance or abs(bc_y2 - bb_y2) > tolerance:
                 del checked_bars[cb_idx]
@@ -480,7 +488,6 @@ class BarlineFinder:
     #     for st in staff_bb[:]:
     #         print st
 
-
         filtered_bars = sorted_bars
         return filtered_bars
 
@@ -615,7 +622,11 @@ if __name__ == "__main__":
     noborderremove = args.noborderremove
     norotation = args.norotation
 
-    bar_finder = BarlineFinder(verbose)
+    # internal parameters for filtering barline candidates
+    ar_thresh = 0.25
+    v_thresh = 0.66
+
+    bar_finder = BarlineFinder(ar_thresh, v_thresh, verbose)
     staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint, noborderremove, norotation)
     # print '\nSTAFF_BB:{0}\n\nBAR_BB:{1}'.format(staff_bb, bar_bb)
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
