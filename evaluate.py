@@ -67,7 +67,7 @@ def calc_fmeasure(precision, recall):
 
 class EvaluateMeasureFinder(object):
 
-    def __init__(self, dataroot, verbose=False):
+    def __init__(self, dataroot, interfiles=False, verbose=False):
         '''
         Setup the experiment.
 
@@ -83,6 +83,7 @@ class EvaluateMeasureFinder(object):
             raise IOError
 
         self.verbose = verbose
+        self._interfiles = interfiles
 
         init_gamera()
 
@@ -161,7 +162,7 @@ class EvaluateMeasureFinder(object):
 
                 # run the measure finding algorithm and write the output to mei
                 try:
-                    bar_finder = BarlineFinder(ar_thresh, v_thresh, self.verbose)
+                    bar_finder = BarlineFinder(ar_thresh, v_thresh, self._interfiles, self.verbose)
                     noborderremove = True
                     norotation = False
                     staff_bb, bar_bb, _, image_width, image_height, image_dpi = bar_finder.process_file(image_path, sg_hint, noborderremove, norotation)
@@ -289,7 +290,8 @@ if __name__ == "__main__":
     dataroot = args.dataroot
     verbose = args.verbose
 
-    emf = EvaluateMeasureFinder(dataroot, verbose)
+    gen_interfiles = False
+    emf = EvaluateMeasureFinder(dataroot, gen_interfiles, verbose)
     bb_padding_in = 0.5
 
     # create parameter matrix
