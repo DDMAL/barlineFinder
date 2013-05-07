@@ -45,6 +45,9 @@ class StaffGroupMismatch(Exception):
 
 class BarlineFinder:
 
+    def __init__(self, verbose):
+        self.verbose = verbose
+
     def _border_removal(self, image):
         """
         Calculates and masks the image border, returns a new image
@@ -94,7 +97,8 @@ class BarlineFinder:
         
         try:
             # using miyao as backup
-            print 'MIYAO'
+            if self.verbose:
+                print 'MIYAO'
             stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
             stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
             polygon = stf_instance.get_polygon()
@@ -134,11 +138,9 @@ class BarlineFinder:
                     y_list_last = [y.y_list[-1] for y in p]
                     y2 = max(y_list_last)
                 sc_position.append([i + 1, x1, y1, x2, y2])
-            print 'DALITZ'            
+            if self.verbose:
+                print 'DALITZ'            
 
-    
-
-        # print sc_position
         # Glueing the output of the Miyao staff finder
         stf_position.append((sc_position[0]))
         j = 1
@@ -164,7 +166,6 @@ class BarlineFinder:
             else:
                 j += 1
                 stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
-
 
         return stf_position
 
@@ -208,7 +209,8 @@ class BarlineFinder:
         system_bb = self._system_position_parser(stf_position)    
         no_sys =  len(system_bb) 
 
-        print 'STF_HEIGHT:{0}'.format(stf_height)
+        if self.verbose:
+            print 'STF_HEIGHT:{0}'.format(stf_height)
 
         def __within_bb_check(bc, bb):
             """
@@ -267,7 +269,6 @@ class BarlineFinder:
         for i in xrange(no_sys):
             sys_bars.append([x for x in filt_bar_candidates if x[1] == i+1])
 
-
         for sys_bar_idx, sys_bar in enumerate(sys_bars):
             bars = []
             system_height = abs(system_bb[sys_bar_idx][4]-system_bb[sys_bar_idx][2])
@@ -294,7 +295,6 @@ class BarlineFinder:
             for bc in bars:
                 checked_bars.append((bc, sys_bar_idx+1))
 
-        # print 'CB:{0}'.format(checked_bars)
         # filtering bar candidates that are outside a y-range of tolerance
         for cb_idx in range(len(checked_bars)-1, -1, -1):
 
@@ -307,7 +307,6 @@ class BarlineFinder:
 
             if abs(bc_y1 - bb_y1) > tolerance or abs(bc_y2 - bb_y2) > tolerance:
                 del checked_bars[cb_idx]
-
 
         # comparing first and last bar candidate with staffFinder output
         # converting the barline candidate structure into a different one
@@ -335,13 +334,12 @@ class BarlineFinder:
 
             if abs(fb_x - bb_x1) > tolerance:
                 # create a new blank image for a manually created bar candidate from the stafffinder output
-                new_bc = Image(Point (bb_x1, bb_y1), Point (bb_x1 + bc_av_width, bb_y1 + system_height))
+                new_bc = Image(Point (bb_x1, bb_y1), Point(bb_x1 + bc_av_width, bb_y1 + system_height))
                 sb.insert(0, new_bc)
-
 
             if abs(lb_x - bb_x2) > tolerance:
                 # create a new blank image for a manually created bar candidate from the stafffinder output
-                new_bc = Image(Point (bb_x2, bb_y2), Point (bb_x2 + bc_av_width, bb_y2 + system_height))
+                new_bc = Image(Point (bb_x2, bb_y2), Point(bb_x2 + bc_av_width, bb_y2 + system_height))
                 sb.append(new_bc)
 
             # filters bar candidates that are close together by x
@@ -350,17 +348,15 @@ class BarlineFinder:
                 if abs(sb[jdx - 1].offset_x - sb[jdx].offset_x) < tolerance:
                     del sb[jdx]
 
-
-
-
         checked_bars = []
         for idx, sb in enumerate(system_bars):
             for bar in sb:
                 checked_bars.append((bar, idx+1))
 
+        if self.verbose:
+            print 'Checked bars:{0}'.format(checked_bars)
 
         return checked_bars
-
 
     def _staff_number_assign(self, bars_bb, staff_bb):
         """
@@ -464,7 +460,6 @@ class BarlineFinder:
     def _highlight(self, image, ccs_bars):
         RGB_image = image.to_rgb()
         for c in ccs_bars:
-            # print c
             RGB_image.highlight(c[0], RGBPixel(255, 0, 0))
         return RGB_image
 
@@ -519,11 +514,14 @@ class BarlineFinder:
         # because it is more reliable than gamera
         pil_image = PIL.Image.open(input_file)
         image_dpi = pil_image.info['dpi'][0]
-        print 'DPI:{0}'.format(image_dpi)
         if image_dpi == 0:
             # set a default image dpi of 72
-            print "Manually setting image dpi to 72"
+            if self.verbose:
+                print "Manually setting image dpi to 72"
             image_dpi = 72
+
+        if self.verbose:
+            print 'DPI:{0}'.format(image_dpi)
 
         # parse the staff group hint into a list of staffGrps---one for each system
         # [staffGrps, ...]
@@ -532,11 +530,12 @@ class BarlineFinder:
         barfinder_sg_hint = ", ".join([str(len(sg.getDescendantsByName('staffDef'))) for sg in system_staff_groups])
         system = self._system_structure_parser(barfinder_sg_hint)
 
-        print "SG HINT:{0}\nSYSTEM:{1}".format(sg_hint, system) #GVM
+        if self.verbose:
+            print "SG HINT:{0}".format(sg_hint) #GVM
 
         # Returns the vertices for each staff and its number
         stf_position = self._staff_line_position(image, image_dpi)
-        print stf_position
+        #print stf_position
         if len(stf_position) != len(system):
             raise StaffGroupMismatch('Number of recognized staves is different to the one entered by the user')
 
@@ -554,17 +553,15 @@ class BarlineFinder:
         mfr = image.most_frequent_run('black', 'vertical')
         # despeckle value equation for mfr: [1,10], [2,50], [3,100]
         despeckle_value = int(45 * mfr - 36.67)
-        print 'MFR:{0}, DV:{1}'.format(mfr, despeckle_value)
+        if self.verbose:
+            print 'MFR:{0}, DV:{1}'.format(mfr, despeckle_value)
         no_staff_image = self._staffline_removal(image)
         self._despeckle(no_staff_image, despeckle_value)
         no_staff_image.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_no_stafflines.tiff')
 
         # Filters short-runs
-        
-        # print 'MFR:{0}'.format(mfr)
         filtered_image = self._most_frequent_run_filter(no_staff_image, mfr, despeckle_value)    # most_frequent_run
         filtered_image.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_no_mfr.tiff')
-
 
         # cc's and highlighs no staff and short runs filtered image and writes txt file with candidate bars
         ccs_bars = self._ccs(filtered_image)
@@ -575,15 +572,12 @@ class BarlineFinder:
         image_ccs_mfr.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_ccs_mfr.tiff')
 
         checked_bars = self._bar_candidate_check(ccs_bars, stf_position, system, image_dpi)
-        # print 'CHECKED_BARS:{0}'.format(checked_bars)
-        
 
         RGB_image = self._highlight(image, checked_bars)
         output_path = os.path.splitext(input_file.split('/')[-1])[0] + '_candidates.tiff'
         RGB_image.save_tiff(output_path) #GVM
 
         bar_list = []
-        # print "CHECKED_BARS: {0}\n\n".format(checked_bars) #GVM
         for c in checked_bars:
             bar_list.append([c[1], c[0].offset_x, c[0].offset_y, c[0].offset_x+c[0].ncols-1, c[0].offset_y+c[0].nrows-1])
 
@@ -593,7 +587,6 @@ class BarlineFinder:
         numbered_bars = self._staff_number_assign(sorted_bars, staff_bb)
         
         # for nb in numbered_bars: print 'NUMBERED BARS:{0}'.format(nb)
-        
         return staff_bb, numbered_bars, image_path, image_width, image_height, image_dpi
 
 if __name__ == "__main__":
@@ -612,7 +605,7 @@ if __name__ == "__main__":
     noborderremove = args.noborderremove
     norotation = args.norotation
 
-    bar_finder = BarlineFinder()
+    bar_finder = BarlineFinder(verbose)
     staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint, noborderremove, norotation)
     # print '\nSTAFF_BB:{0}\n\nBAR_BB:{1}'.format(staff_bb, bar_bb)
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
