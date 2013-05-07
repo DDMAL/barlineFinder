@@ -243,7 +243,11 @@ class BarlineFinder:
             return grouped_bars
 
         # 1. filter by aspect ratio
-        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.5]# and bc.ncols <=15]
+        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.025]# and bc.ncols <=15]
+        if not len(bar_candidates):
+            # if all candidates have been filtered, no need to filter more
+            return []
+
         # aspect_ratio = [bc.aspect_ratio() for bc in bar_candidates]
         # print aspect_ratio
 
@@ -257,10 +261,13 @@ class BarlineFinder:
                     filt_bar_candidates.append([bc, bb[5]])
                     bc_av_width += bc.ncols
                     break
-        try:
-            bc_av_width = bc_av_width/len(filt_bar_candidates) # Bar candidate average width
-        except ZeroDivisionError:
-            pass
+        
+        if not len(filt_bar_candidates):
+            # if all candidates have been filtered, no need to filter more
+            return []
+
+        # Calculate the average width of bar candidates
+        bc_av_width = bc_av_width/len(filt_bar_candidates) 
 
         # print 'filt_bar_candidates:{0}'.format(filt_bar_candidates)
         
@@ -297,7 +304,6 @@ class BarlineFinder:
 
         # filtering bar candidates that are outside a y-range of tolerance
         for cb_idx in range(len(checked_bars)-1, -1, -1):
-
             cb = checked_bars[cb_idx]
             bc_y1 = cb[0].offset_y
             bc_y2 = cb[0].offset_y + cb[0].nrows
@@ -307,6 +313,10 @@ class BarlineFinder:
 
             if abs(bc_y1 - bb_y1) > tolerance or abs(bc_y2 - bb_y2) > tolerance:
                 del checked_bars[cb_idx]
+
+        if not len(checked_bars):
+            # if all candidates have been filtered, no need to filter more
+            return []
 
         # comparing first and last bar candidate with staffFinder output
         # converting the barline candidate structure into a different one
