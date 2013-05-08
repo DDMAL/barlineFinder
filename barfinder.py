@@ -83,7 +83,7 @@ class BarlineFinder:
         ccs = proc_image.cc_analysis()
         return ccs
 
-    def _staff_line_position(self, image, image_dpi):
+    def _staff_line_position_dalitz(self, image, image_dpi):
         """Finds the staff line position, but also corrects the output
         of the Miyao staff finder algorithm by connecting candidate
         sub-staves according to their position in the score, trying
@@ -95,51 +95,52 @@ class BarlineFinder:
         sc_position = [] # staff candidate
         stf_position = []
         
-        try:
-            # using miyao as backup
-            if self.verbose:
-                print 'MIYAO'
-            stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
-            stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
-            polygon = stf_instance.get_polygon()
-            for i, p in enumerate(polygon):
-                ul = p[0].vertices[0]
-                ur = p[0].vertices[-1]
-                ll = p[len(p)-1].vertices[0]
-                lr = p[len(p)-1].vertices[-1]
+    # try:
+        # using dalitz first
+        stf_instance = musicstaves.StaffFinder_dalitz(image, 0, 0)
+        stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
+        skeleton = stf_instance.get_skeleton()
+        for i, p in enumerate(skeleton):
+            
+            x1 = p[0].left_x
+            x2 = x1 + len(p[0].y_list)
 
-                x1 = ul.x
-                y1 = ul.y
-                x2 = lr.x
-                y2 = lr.y
-                sc_position.append([i + 1, x1, y1, x2, y2])
+            y_list = p[0].y_list
 
-        except:
-            # using dalitz first
-            stf_instance = musicstaves.StaffFinder_dalitz(image, 0, 0)
-            stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
-            skeleton = stf_instance.get_skeleton()
-            for i, p in enumerate(skeleton):
-                
-                x1 = p[0].left_x
-                x2 = x1 + len(p[0].y_list)
+            if y_list[0] > y_list[-1]:
+                y_list_last = [y.y_list[-1] for y in p]
+                y1 = min(y_list_last)
+                y_list_first = [y.y_list[0] for y in p]
+                y2 = max(y_list_first)
 
-                y_list = p[0].y_list
+            else:
+                y_list_first = [y.y_list[0] for y in p]
+                y1 = min(y_list_first)
+                y_list_last = [y.y_list[-1] for y in p]
+                y2 = max(y_list_last)
+            sc_position.append([i + 1, x1, y1, x2, y2])
+        # if self.verbose:
+        #     print 'DALITZ'    
 
-                if y_list[0] > y_list[-1]:
-                    y_list_last = [y.y_list[-1] for y in p]
-                    y1 = min(y_list_last)
-                    y_list_first = [y.y_list[0] for y in p]
-                    y2 = max(y_list_first)
+        # except:
+        #     # using miyao as backup
+        #     if self.verbose:
+        #         print 'MIYAO'
+        #     stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
+        #     stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
+        #     polygon = stf_instance.get_polygon()
+        #     for i, p in enumerate(polygon):
+        #         ul = p[0].vertices[0]
+        #         ur = p[0].vertices[-1]
+        #         ll = p[len(p)-1].vertices[0]
+        #         lr = p[len(p)-1].vertices[-1]
 
-                else:
-                    y_list_first = [y.y_list[0] for y in p]
-                    y1 = min(y_list_first)
-                    y_list_last = [y.y_list[-1] for y in p]
-                    y2 = max(y_list_last)
-                sc_position.append([i + 1, x1, y1, x2, y2])
-            if self.verbose:
-                print 'DALITZ'            
+        #         x1 = ul.x
+        #         y1 = ul.y
+        #         x2 = lr.x
+        #         y2 = lr.y
+        #         sc_position.append([i + 1, x1, y1, x2, y2])
+
 
         # Glueing the output of the Miyao staff finder
         stf_position.append((sc_position[0]))
@@ -168,6 +169,93 @@ class BarlineFinder:
                 stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
 
         return stf_position
+
+    def _staff_line_position_miyao(self, image, image_dpi):
+        """Finds the staff line position, but also corrects the output
+        of the Miyao staff finder algorithm by connecting candidate
+        sub-staves according to their position in the score, trying
+        to glue related staves.
+
+        Returns a vector with the vertices for each staff with the form 
+        [(staff_number, x1, y1, x2, y2)], starting from number 1
+        """
+        sc_position = [] # staff candidate
+        stf_position = []
+        
+        # try:
+        #     # using dalitz first
+        #     stf_instance = musicstaves.StaffFinder_dalitz(image, 0, 0)
+        #     stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
+        #     skeleton = stf_instance.get_skeleton()
+        #     for i, p in enumerate(skeleton):
+                
+        #         x1 = p[0].left_x
+        #         x2 = x1 + len(p[0].y_list)
+
+        #         y_list = p[0].y_list
+
+        #         if y_list[0] > y_list[-1]:
+        #             y_list_last = [y.y_list[-1] for y in p]
+        #             y1 = min(y_list_last)
+        #             y_list_first = [y.y_list[0] for y in p]
+        #             y2 = max(y_list_first)
+
+        #         else:
+        #             y_list_first = [y.y_list[0] for y in p]
+        #             y1 = min(y_list_first)
+        #             y_list_last = [y.y_list[-1] for y in p]
+        #             y2 = max(y_list_last)
+        #         sc_position.append([i + 1, x1, y1, x2, y2])
+        #     if self.verbose:
+        #         print 'DALITZ'    
+
+    # except:
+        # using miyao as backup
+        # if self.verbose:
+        #     print 'MIYAO'
+        stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
+        stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
+        polygon = stf_instance.get_polygon()
+        for i, p in enumerate(polygon):
+            ul = p[0].vertices[0]
+            ur = p[0].vertices[-1]
+            ll = p[len(p)-1].vertices[0]
+            lr = p[len(p)-1].vertices[-1]
+
+            x1 = ul.x
+            y1 = ul.y
+            x2 = lr.x
+            y2 = lr.y
+            sc_position.append([i + 1, x1, y1, x2, y2])
+
+
+        # Glueing the output of the Miyao staff finder
+        stf_position.append((sc_position[0]))
+        j = 1
+        for k, sc in enumerate(sc_position[1:]):
+            x1 = stf_position[-1][1]
+            y1 = stf_position[-1][2]
+            x2 = stf_position[-1][3]
+            y2 = stf_position[-1][4]
+            mid_y = (sc[2]+sc[4])/2
+
+            # Checks if a staff candidate lies in the same y-range that the previous one
+            if y2 > mid_y > y1:
+                # If the bounding box of the staff candidate upper left x-value is larger than 
+                # the previous bounding box, and also if this value is larger than the previous 
+                # difference:
+                if sc[1] >= x1 and sc[1] - x1 >= x2 - x1:
+                    stf_position.pop()
+                    stf_position.append([j, x1, y1, sc[3], sc[4]])
+
+                elif sc[1] < x1:
+                    stf_position.pop()
+                    stf_position.append([j, sc[1], sc[2], x2, y2])
+            else:
+                j += 1
+                stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
+
+        return stf_position        
 
     def _system_position_parser(self, stf_position):
         """
@@ -534,10 +622,20 @@ class BarlineFinder:
             print "SG HINT:{0}".format(sg_hint) #GVM
 
         # Returns the vertices for each staff and its number
-        stf_position = self._staff_line_position(image, image_dpi)
+        try:
+            stf_position = self._staff_line_position_dalitz(image, image_dpi)
+            if len(stf_position) != len(system):
+                raise StaffGroupMismatch('Number of recognized staves is different to the one entered by the user')
+            if self.verbose:
+                print 'DALITZ'
+
+        except:
+            if self.verbose:
+                print 'MIYAO'
+            stf_position = self._staff_line_position_miyao(image, image_dpi)
         #print stf_position
-        if len(stf_position) != len(system):
-            raise StaffGroupMismatch('Number of recognized staves is different to the one entered by the user')
+        # if len(stf_position) != len(system):
+        #     raise StaffGroupMismatch('Number of recognized staves is different to the one entered by the user')
 
         # Appends the proper system number according to the user input
         for i, s in enumerate(stf_position):
