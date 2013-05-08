@@ -28,6 +28,7 @@ parser.add_argument('-g', '--staffgroups', help='staffgroups')
 parser.add_argument('filein', help='input file (.tiff)')
 parser.add_argument('fileout', help='output file (.mei)')
 parser.add_argument('-v', '--verbose', help='increase output verbosity', action='store_true')
+parser.add_argument('-i', '--interfiles', help='generate intermediary output files', action='store_true')
 parser.add_argument('-nb', '--noborderremove', help='do not remove borders automatically', action='store_true')
 parser.add_argument('-nr', '--norotation', help='do not automatically rotate', action='store_true')
 
@@ -45,7 +46,10 @@ class StaffGroupMismatch(Exception):
 
 class BarlineFinder:
 
-    def __init__(self, verbose):
+    def __init__(self, ar_thresh=0.1, v_thresh=0.66, interfiles=False, verbose=False):
+        self._ar_thresh = ar_thresh
+        self._v_thresh = v_thresh
+        self._interfiles = interfiles
         self.verbose = verbose
 
     def _border_removal(self, image):
@@ -290,6 +294,12 @@ class BarlineFinder:
         to the staff position by the Miyao staff finder.
 
         Returns a vector in the form: [[gameracore.Image, staff_no]]
+
+        PARAMETERS
+        ----------
+        ar_thresh (Float): threshold parameter for aspect ratio of bar candidates
+        v_thresh (Float): threshold parameter for the percentage of the staff height for bar candidates
+                          to be within the system bounding box (y dimension)
         """
 
         checked_bars = []
@@ -331,7 +341,11 @@ class BarlineFinder:
             return grouped_bars
 
         # 1. filter by aspect ratio
-        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= 0.1]# and bc.ncols <=15]
+        bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= self._ar_thresh]# and bc.ncols <=15]
+        if not len(bar_candidates):
+            # if all candidates have been filtered, no need to filter more
+            return []
+
         # aspect_ratio = [bc.aspect_ratio() for bc in bar_candidates]
         # print aspect_ratio
 
@@ -345,10 +359,13 @@ class BarlineFinder:
                     filt_bar_candidates.append([bc, bb[5]])
                     bc_av_width += bc.ncols
                     break
-        try:
-            bc_av_width = bc_av_width/len(filt_bar_candidates) # Bar candidate average width
-        except ZeroDivisionError:
-            pass
+        
+        if not len(filt_bar_candidates):
+            # if all candidates have been filtered, no need to filter more
+            return []
+
+        # Calculate the average width of bar candidates
+        bc_av_width = bc_av_width/len(filt_bar_candidates) 
 
         # print 'filt_bar_candidates:{0}'.format(filt_bar_candidates)
         
@@ -385,16 +402,19 @@ class BarlineFinder:
 
         # filtering bar candidates that are outside a y-range of tolerance
         for cb_idx in range(len(checked_bars)-1, -1, -1):
-
             cb = checked_bars[cb_idx]
             bc_y1 = cb[0].offset_y
             bc_y2 = cb[0].offset_y + cb[0].nrows
             bb_y1 = system_bb[cb[1]-1][2]
             bb_y2 = system_bb[cb[1]-1][4]
-            tolerance = float(2)/3 * stf_height #tolerance dependent on 
+            tolerance = self._v_thresh * stf_height #tolerance dependent on 
 
             if abs(bc_y1 - bb_y1) > tolerance or abs(bc_y2 - bb_y2) > tolerance:
                 del checked_bars[cb_idx]
+
+        if not len(checked_bars):
+            # if all candidates have been filtered, no need to filter more
+            return []
 
         # comparing first and last bar candidate with staffFinder output
         # converting the barline candidate structure into a different one
@@ -558,7 +578,6 @@ class BarlineFinder:
     #     for st in staff_bb[:]:
     #         print st
 
-
         filtered_bars = sorted_bars
         return filtered_bars
 
@@ -590,11 +609,11 @@ class BarlineFinder:
             # Auto-rotates an image
             image = image.correct_rotation(0)
 
-        # image = image.dilate()
         # save the image that barline candidates are calculated from
         # the MEI will reference this file
         image_path = os.path.splitext(input_file.split('/')[-1])[0] + '_preprocessed.tiff'
-        image.save_tiff(image_path)
+        if self._interfiles:
+            image.save_tiff(image_path)
         image_width = image.width
         image_height = image.height
 
@@ -655,25 +674,29 @@ class BarlineFinder:
             print 'MFR:{0}, DV:{1}'.format(mfr, despeckle_value)
         no_staff_image = self._staffline_removal(image)
         self._despeckle(no_staff_image, despeckle_value)
-        no_staff_image.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_no_stafflines.tiff')
+        if self._interfiles:
+            no_staff_image.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_no_stafflines.tiff')
 
         # Filters short-runs
         filtered_image = self._most_frequent_run_filter(no_staff_image, mfr, despeckle_value)    # most_frequent_run
-        filtered_image.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_no_mfr.tiff')
+        if self._interfiles:
+            filtered_image.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_no_mfr.tiff')
 
         # cc's and highlighs no staff and short runs filtered image and writes txt file with candidate bars
         ccs_bars = self._ccs(filtered_image)
 
 
         # print ccs_bars
-        image_ccs_mfr = self._highlight(filtered_image, [[c] for c in ccs_bars if c.aspect_ratio()[0] <= 0.1])
-        image_ccs_mfr.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_ccs_mfr.tiff')
+        image_ccs_mfr = self._highlight(filtered_image, [[c] for c in ccs_bars if c.aspect_ratio()[0] <= 0.05])
+        if self._interfiles:
+            image_ccs_mfr.save_tiff(os.path.splitext(input_file.split('/')[-1])[0] + '_ccs_mfr.tiff')
 
         checked_bars = self._bar_candidate_check(ccs_bars, stf_position, system, image_dpi)
 
         RGB_image = self._highlight(image, checked_bars)
         output_path = os.path.splitext(input_file.split('/')[-1])[0] + '_candidates.tiff'
-        RGB_image.save_tiff(output_path) #GVM
+        if self._interfiles:
+            RGB_image.save_tiff(output_path) #GVM
 
         bar_list = []
         for c in checked_bars:
@@ -702,8 +725,13 @@ if __name__ == "__main__":
     verbose = args.verbose
     noborderremove = args.noborderremove
     norotation = args.norotation
+    interfiles = args.interfiles
 
-    bar_finder = BarlineFinder(verbose)
+    # internal parameters for filtering barline candidates
+    ar_thresh = 0.25
+    v_thresh = 0.66
+
+    bar_finder = BarlineFinder(ar_thresh, v_thresh, interfiles, interfiles, verbose)
     staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint, noborderremove, norotation)
     # print '\nSTAFF_BB:{0}\n\nBAR_BB:{1}'.format(staff_bb, bar_bb)
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
