@@ -67,7 +67,7 @@ def calc_fmeasure(precision, recall):
 
 class EvaluateMeasureFinder(object):
 
-    def __init__(self, dataroot, verbose=False):
+    def __init__(self, dataroot, interfiles=False, verbose=False):
         '''
         Setup the experiment.
 
@@ -83,10 +83,11 @@ class EvaluateMeasureFinder(object):
             raise IOError
 
         self.verbose = verbose
+        self._interfiles = interfiles
 
         init_gamera()
 
-    def evaluate(self, bb_padding_in=0.05, log=None):
+    def evaluate(self, ar_thresh, v_thresh, bb_padding_in=0.05, log=None):
         '''
         Evaluate the measure finding algorithm on the dataset using the metrics
         of precision, recall, and f-measure.
@@ -99,12 +100,12 @@ class EvaluateMeasureFinder(object):
         '''
 
         if log:
-            logging.basicConfig(format='%(message)s', filename=log, filemode='w', level=logging.DEBUG)
+            logging.basicConfig(format='%(message)s', filename=log, filemode='a', level=logging.DEBUG)
             logging.info("Beginning experiment.")
-            logging.info("Parameters: bb_padding_in=%.2f" % bb_padding_in)
+            logging.info("Parameters: ar_thresh=%.3f, v_thresh=%.3f, bb_padding_in=%.3f" % (ar_thresh, v_thresh, bb_padding_in))
             if self.verbose:
                 print "Beginning experiment."
-                print "Parameters: bb_padding_in=%.2f" % bb_padding_in
+                print "Parameters: ar_thresh=%.3f, v_thresh=%.3f, bb_padding_in=%.3f" % (ar_thresh, v_thresh, bb_padding_in)
 
         precision = []
         recall = []
@@ -134,29 +135,16 @@ class EvaluateMeasureFinder(object):
             logging.info("processing music score (%d/%d)" % (i+1, len(data_points)))
 
             data_files = [os.path.join(data_point_path, f) for f in os.listdir(data_point_path)]
-            image_path = [f for f in data_files if f.endswith('.tiff')][0]
+            image_path = [f for f in data_files if f.endswith('.tiff') and not f.endswith('_preprocessed.tiff')][0]
             sg_hint_file_path = [f for f in data_files if f.endswith('.txt')][0]
             gt_mei_path = [f for f in data_files if f.endswith('.mei') and not f.endswith('_ao.mei')][0]
-            mei_path = [f for f in data_files if f.endswith('_ao.mei')][0]
+            mei_path = [f for f in data_files if f.endswith('_%.3f_%.3f_ao.mei' % (ar_thresh, v_thresh))]
+            filename = os.path.splitext(os.path.split(image_path)[1])[0]
 
-            # if the algorithm has not been run already, run it
-            if not os.path.exists(mei_path):
-                # get staff group hint
-                sg_hint = self._get_sg_hint(sg_hint_file_path)
+            if len(mei_path):
+                # the algorithm has already been run with the given parameters
+                mei_path = mei_path[0]
 
-                # run the measure finding algorithm and write the output to mei
-                try:
-                    bar_finder = BarlineFinder()
-                    staff_bb, bar_bb, _, image_width, image_height, image_dpi = bar_finder.process_file(image_path, sg_hint)
-
-                    bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
-                    bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
-                    bar_converter.output_mei(mei_path)
-                except:
-                    # there was an error with the measure finding algorithm
-                    num_errors += 1
-                    continue
-            else:
                 # still need the image dpi (in the x plane)
                 image = Image.open(image_path)
                 image_dpi = image.info['dpi'][0]
@@ -165,6 +153,27 @@ class EvaluateMeasureFinder(object):
                     logging.info('[WARNING] manually setting img resolution to 72')
                     print '[WARNING] manually setting img resolution to 72'
                     image_dpi = 72
+            else:
+                # the algorithm has not been run already, run it
+                mei_path = os.path.join(data_point_path, '%s_%.3f_%.3f_ao.mei' % (filename, ar_thresh, v_thresh))
+
+                # get staff group hint
+                sg_hint = self._get_sg_hint(sg_hint_file_path)
+
+                # run the measure finding algorithm and write the output to mei
+                try:
+                    bar_finder = BarlineFinder(ar_thresh, v_thresh, self._interfiles, self.verbose)
+                    noborderremove = True
+                    norotation = False
+                    staff_bb, bar_bb, _, image_width, image_height, image_dpi = bar_finder.process_file(image_path, sg_hint, noborderremove, norotation)
+
+                    bar_converter = BarlineDataConverter(staff_bb, bar_bb, self.verbose)
+                    bar_converter.bardata_to_mei(sg_hint, image_path, image_width, image_height, image_dpi)
+                    bar_converter.output_mei(mei_path)
+                except:
+                    # there was an error with the measure finding algorithm
+                    num_errors += 1
+                    continue                
 
             # calculate number of pixels the padding is
             bb_padding_px = bb_padding_in * image_dpi
@@ -281,6 +290,17 @@ if __name__ == "__main__":
     dataroot = args.dataroot
     verbose = args.verbose
 
-    emf = EvaluateMeasureFinder(dataroot, verbose)
+    gen_interfiles = False
+    emf = EvaluateMeasureFinder(dataroot, gen_interfiles, verbose)
     bb_padding_in = 0.5
-    emf.evaluate(bb_padding_in, 'experimentlog.txt')
+
+    # create parameter matrix
+    param_matrix_size = 3
+    ar_min_max = (0.08125, 0.19375)
+    v_min_max = (0.325, 0.775)
+    ar_threshes = np.linspace(ar_min_max[0], ar_min_max[1], param_matrix_size)
+    v_threshes = np.linspace(v_min_max[0], v_min_max[1], param_matrix_size)
+
+    for ar_thresh in ar_threshes:
+        for v_thresh in v_threshes:
+            emf.evaluate(ar_thresh, v_thresh, bb_padding_in, 'experimentlog.txt')
