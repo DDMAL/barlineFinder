@@ -731,7 +731,7 @@ if __name__ == "__main__":
     ar_thresh = 0.25
     v_thresh = 0.66
 
-    bar_finder = BarlineFinder(ar_thresh, v_thresh, interfiles, interfiles, verbose)
+    bar_finder = BarlineFinder(ar_thresh, v_thresh, interfiles, verbose)
     staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint, noborderremove, norotation)
     # print '\nSTAFF_BB:{0}\n\nBAR_BB:{1}'.format(staff_bb, bar_bb)
     bar_converter = BarlineDataConverter(staff_bb, bar_bb, verbose)
