@@ -1,6 +1,7 @@
 from gamera.core import *
 from gamera.toolkits import musicstaves, lyric_extraction, border_removal
 from gamera.classify import BoundingBoxGroupingFunction, ShapedGroupingFunction
+from gamera.plugins import image_utilities
 from gamera import classify
 from gamera import knn
 import PIL, os
@@ -98,9 +99,7 @@ class BarlineFinder:
         """
         sc_position = [] # staff candidate
         stf_position = []
-        
-    # try:
-        # using dalitz first
+
         stf_instance = musicstaves.StaffFinder_dalitz(image, 0, 0)
         stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
         skeleton = stf_instance.get_skeleton()
@@ -123,27 +122,7 @@ class BarlineFinder:
                 y_list_last = [y.y_list[-1] for y in p]
                 y2 = max(y_list_last)
             sc_position.append([i + 1, x1, y1, x2, y2])
-        # if self.verbose:
-        #     print 'DALITZ'    
 
-        # except:
-        #     # using miyao as backup
-        #     if self.verbose:
-        #         print 'MIYAO'
-        #     stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
-        #     stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
-        #     polygon = stf_instance.get_polygon()
-        #     for i, p in enumerate(polygon):
-        #         ul = p[0].vertices[0]
-        #         ur = p[0].vertices[-1]
-        #         ll = p[len(p)-1].vertices[0]
-        #         lr = p[len(p)-1].vertices[-1]
-
-        #         x1 = ul.x
-        #         y1 = ul.y
-        #         x2 = lr.x
-        #         y2 = lr.y
-        #         sc_position.append([i + 1, x1, y1, x2, y2])
 
 
         # Glueing the output of the Miyao staff finder
@@ -186,37 +165,7 @@ class BarlineFinder:
         sc_position = [] # staff candidate
         stf_position = []
         
-        # try:
-        #     # using dalitz first
-        #     stf_instance = musicstaves.StaffFinder_dalitz(image, 0, 0)
-        #     stf_instance.find_staves(5, 3, 60, 25, True, True, 0) # 5 lines
-        #     skeleton = stf_instance.get_skeleton()
-        #     for i, p in enumerate(skeleton):
-                
-        #         x1 = p[0].left_x
-        #         x2 = x1 + len(p[0].y_list)
 
-        #         y_list = p[0].y_list
-
-        #         if y_list[0] > y_list[-1]:
-        #             y_list_last = [y.y_list[-1] for y in p]
-        #             y1 = min(y_list_last)
-        #             y_list_first = [y.y_list[0] for y in p]
-        #             y2 = max(y_list_first)
-
-        #         else:
-        #             y_list_first = [y.y_list[0] for y in p]
-        #             y1 = min(y_list_first)
-        #             y_list_last = [y.y_list[-1] for y in p]
-        #             y2 = max(y_list_last)
-        #         sc_position.append([i + 1, x1, y1, x2, y2])
-        #     if self.verbose:
-        #         print 'DALITZ'    
-
-    # except:
-        # using miyao as backup
-        # if self.verbose:
-        #     print 'MIYAO'
         stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
         stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
         polygon = stf_instance.get_polygon()
@@ -325,20 +274,12 @@ class BarlineFinder:
 
         def __bar_candidate_grouping(ungrouped_bars):
             """
-            Groups bar candidates
+            Groups bar candidates and returns grouped bars
             """
-            for bar in ungrouped_bars:
-                bar.classify_heuristic('_group._part.bc')
-
-            cknn = knn.kNNInteractive()
-            cknn.set_glyphs(ungrouped_bars)
-            grouped_bars = cknn.group_and_update_list_automatic(ungrouped_bars, \
-                        max_parts_per_group = 10, \
-                        grouping_function = BoundingBoxGroupingFunction(5000)) # Threshold distance in pixels between bounding boxes 
-            
-            if len(grouped_bars) < 1:
-                grouped_bars.append(bar)
+            grouped_bars = []
+            grouped_bars.append(image_utilities.union_images(ungrouped_bars))
             return grouped_bars
+
 
         # 1. filter by aspect ratio
         bar_candidates = [bc for bc in bar_candidates if bc.aspect_ratio()[0] <= self._ar_thresh]# and bc.ncols <=15]
