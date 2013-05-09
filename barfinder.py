@@ -125,34 +125,6 @@ class BarlineFinder:
 
         return sc_position
 
-        # # Glueing the output of the Miyao staff finder
-        # stf_position.append((sc_position[0]))
-        # j = 1
-        # for k, sc in enumerate(sc_position[1:]):
-        #     x1 = stf_position[-1][1]
-        #     y1 = stf_position[-1][2]
-        #     x2 = stf_position[-1][3]
-        #     y2 = stf_position[-1][4]
-        #     mid_y = (sc[2]+sc[4])/2
-
-        #     # Checks if a staff candidate lies in the same y-range that the previous one
-        #     if y2 > mid_y > y1:
-        #         # If the bounding box of the staff candidate upper left x-value is larger than 
-        #         # the previous bounding box, and also if this value is larger than the previous 
-        #         # difference:
-        #         if sc[1] >= x1 and sc[1] - x1 >= x2 - x1:
-        #             stf_position.pop()
-        #             stf_position.append([j, x1, y1, sc[3], sc[4]])
-
-        #         elif sc[1] < x1:
-        #             stf_position.pop()
-        #             stf_position.append([j, sc[1], sc[2], x2, y2])
-        #     else:
-        #         j += 1
-        #         stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
-
-        # return stf_position
-
     def _staff_line_position_miyao(self, image, image_dpi):
         """Finds the staff line position, but also corrects the output
         of the Miyao staff finder algorithm by connecting candidate
@@ -181,35 +153,7 @@ class BarlineFinder:
             sc_position.append([i + 1, x1, y1, x2, y2])
 
         return sc_position
-
-
-        # # Glueing the output of the staff finder
-        # stf_position.append((sc_position[0]))
-        # j = 1
-        # for k, sc in enumerate(sc_position[1:]):
-        #     x1 = stf_position[-1][1]
-        #     y1 = stf_position[-1][2]
-        #     x2 = stf_position[-1][3]
-        #     y2 = stf_position[-1][4]
-        #     mid_y = (sc[2]+sc[4])/2
-
-        #     # Checks if a staff candidate lies in the same y-range that the previous one
-        #     if y2 > mid_y > y1:
-        #         # If the bounding box of the staff candidate upper left x-value is larger than 
-        #         # the previous bounding box, and also if this value is larger than the previous 
-        #         # difference:
-        #         if sc[1] >= x1 and sc[1] - x1 >= x2 - x1:
-        #             stf_position.pop()
-        #             stf_position.append([j, x1, y1, sc[3], sc[4]])
-
-        #         elif sc[1] < x1:
-        #             stf_position.pop()
-        #             stf_position.append([j, sc[1], sc[2], x2, y2])
-        #     else:
-        #         j += 1
-        #         stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
-
-        # return stf_position        
+     
 
     def stafffinding_glue(self, sc_position):
         """
@@ -243,8 +187,6 @@ class BarlineFinder:
                 stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
 
         return stf_position    
-
-
 
 
     def _system_position_parser(self, stf_position):
@@ -338,14 +280,12 @@ class BarlineFinder:
                     bc_av_width += bc.ncols
                     break
         
-        if not len(filt_bar_candidates):
-            # if all candidates have been filtered, no need to filter more
+        # if all candidates have been filtered, no need to filter more
+        if not len(filt_bar_candidates):    
             return []
 
         # Calculate the average width of bar candidates
         bc_av_width = bc_av_width/len(filt_bar_candidates) 
-
-        # print 'filt_bar_candidates:{0}'.format(filt_bar_candidates)
         
         # group bar candidates by system which they belong
         sys_bars = []
@@ -356,21 +296,22 @@ class BarlineFinder:
             bars = []
             system_height = abs(system_bb[sys_bar_idx][4]-system_bb[sys_bar_idx][2])
 
-            factor = 4 # vertical tolerance for finding vertical candidates
+            factor = 4 # vertical tolerance for finding vertical candidates (should be dependent on the number of staves per system)
             brok_cand_list = []
-            for s_ind, s in enumerate(sys_bar): #each bar candidate within the same system
-
+            #each bar candidate within the same system
+            for s_ind, s in enumerate(sys_bar): 
                 brok_cand = [x[0] for x in sys_bar if \
                         (s[0].offset_x > (x[0].offset_x - factor * bc_av_width) and \
-                         s[0].offset_x < (x[0].offset_x + factor * bc_av_width))] # This should be dependent on the number of staves per system
+                         s[0].offset_x < (x[0].offset_x + factor * bc_av_width))] 
 
                 if not brok_cand in brok_cand_list: # if it is not already in the list of broken bar candidates
                     brok_cand_list.append(brok_cand)
 
                     if len(brok_cand) > 1:   
                         grouped_bars = __bar_candidate_grouping(brok_cand)
+                        # run until all candidates have been glued
                         while len(grouped_bars) > 1:
-                            grouped_bars = __bar_candidate_grouping(grouped_bars) # run until all candidates have been glued
+                            grouped_bars = __bar_candidate_grouping(grouped_bars) 
                         bars.append(grouped_bars[0])
                     else:
                         bars.append(s[0])
@@ -385,13 +326,13 @@ class BarlineFinder:
             bc_y2 = cb[0].offset_y + cb[0].nrows
             bb_y1 = system_bb[cb[1]-1][2]
             bb_y2 = system_bb[cb[1]-1][4]
-            tolerance = self._v_thresh * stf_height #tolerance dependent on 
+            tolerance = self._v_thresh * stf_height #tolerance dependent on stf_height
 
             if abs(bc_y1 - bb_y1) > tolerance or abs(bc_y2 - bb_y2) > tolerance:
                 del checked_bars[cb_idx]
 
-        if not len(checked_bars):
-            # if all candidates have been filtered, no need to filter more
+        # if all candidates have been filtered, no need to filter more
+        if not len(checked_bars):    
             return []
 
         # comparing first and last bar candidate with staffFinder output
