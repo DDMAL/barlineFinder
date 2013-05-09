@@ -123,35 +123,35 @@ class BarlineFinder:
                 y2 = max(y_list_last)
             sc_position.append([i + 1, x1, y1, x2, y2])
 
+        return sc_position
 
+        # # Glueing the output of the Miyao staff finder
+        # stf_position.append((sc_position[0]))
+        # j = 1
+        # for k, sc in enumerate(sc_position[1:]):
+        #     x1 = stf_position[-1][1]
+        #     y1 = stf_position[-1][2]
+        #     x2 = stf_position[-1][3]
+        #     y2 = stf_position[-1][4]
+        #     mid_y = (sc[2]+sc[4])/2
 
-        # Glueing the output of the Miyao staff finder
-        stf_position.append((sc_position[0]))
-        j = 1
-        for k, sc in enumerate(sc_position[1:]):
-            x1 = stf_position[-1][1]
-            y1 = stf_position[-1][2]
-            x2 = stf_position[-1][3]
-            y2 = stf_position[-1][4]
-            mid_y = (sc[2]+sc[4])/2
+        #     # Checks if a staff candidate lies in the same y-range that the previous one
+        #     if y2 > mid_y > y1:
+        #         # If the bounding box of the staff candidate upper left x-value is larger than 
+        #         # the previous bounding box, and also if this value is larger than the previous 
+        #         # difference:
+        #         if sc[1] >= x1 and sc[1] - x1 >= x2 - x1:
+        #             stf_position.pop()
+        #             stf_position.append([j, x1, y1, sc[3], sc[4]])
 
-            # Checks if a staff candidate lies in the same y-range that the previous one
-            if y2 > mid_y > y1:
-                # If the bounding box of the staff candidate upper left x-value is larger than 
-                # the previous bounding box, and also if this value is larger than the previous 
-                # difference:
-                if sc[1] >= x1 and sc[1] - x1 >= x2 - x1:
-                    stf_position.pop()
-                    stf_position.append([j, x1, y1, sc[3], sc[4]])
+        #         elif sc[1] < x1:
+        #             stf_position.pop()
+        #             stf_position.append([j, sc[1], sc[2], x2, y2])
+        #     else:
+        #         j += 1
+        #         stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
 
-                elif sc[1] < x1:
-                    stf_position.pop()
-                    stf_position.append([j, sc[1], sc[2], x2, y2])
-            else:
-                j += 1
-                stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
-
-        return stf_position
+        # return stf_position
 
     def _staff_line_position_miyao(self, image, image_dpi):
         """Finds the staff line position, but also corrects the output
@@ -165,7 +165,6 @@ class BarlineFinder:
         sc_position = [] # staff candidate
         stf_position = []
         
-
         stf_instance = musicstaves.StaffFinder_miyao(image, 0, 0)
         stf_instance.find_staves(5, 20, 0.8, -1) # 5 lines
         polygon = stf_instance.get_polygon()
@@ -181,8 +180,43 @@ class BarlineFinder:
             y2 = lr.y
             sc_position.append([i + 1, x1, y1, x2, y2])
 
+        return sc_position
 
-        # Glueing the output of the Miyao staff finder
+
+        # # Glueing the output of the staff finder
+        # stf_position.append((sc_position[0]))
+        # j = 1
+        # for k, sc in enumerate(sc_position[1:]):
+        #     x1 = stf_position[-1][1]
+        #     y1 = stf_position[-1][2]
+        #     x2 = stf_position[-1][3]
+        #     y2 = stf_position[-1][4]
+        #     mid_y = (sc[2]+sc[4])/2
+
+        #     # Checks if a staff candidate lies in the same y-range that the previous one
+        #     if y2 > mid_y > y1:
+        #         # If the bounding box of the staff candidate upper left x-value is larger than 
+        #         # the previous bounding box, and also if this value is larger than the previous 
+        #         # difference:
+        #         if sc[1] >= x1 and sc[1] - x1 >= x2 - x1:
+        #             stf_position.pop()
+        #             stf_position.append([j, x1, y1, sc[3], sc[4]])
+
+        #         elif sc[1] < x1:
+        #             stf_position.pop()
+        #             stf_position.append([j, sc[1], sc[2], x2, y2])
+        #     else:
+        #         j += 1
+        #         stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
+
+        # return stf_position        
+
+    def stafffinding_glue(self, sc_position):
+        """
+        Glues the staff output of the stafffinding algorithms
+        """
+
+        stf_position = []
         stf_position.append((sc_position[0]))
         j = 1
         for k, sc in enumerate(sc_position[1:]):
@@ -208,7 +242,10 @@ class BarlineFinder:
                 j += 1
                 stf_position.append([j, sc[1], sc[2], sc[3], sc[4]])
 
-        return stf_position        
+        return stf_position    
+
+
+
 
     def _system_position_parser(self, stf_position):
         """
@@ -593,9 +630,9 @@ class BarlineFinder:
             if self.verbose:
                 print 'MIYAO'
             stf_position = self._staff_line_position_miyao(image, image_dpi)
-        #print stf_position
-        # if len(stf_position) != len(system):
-        #     raise StaffGroupMismatch('Number of recognized staves is different to the one entered by the user')
+
+        # glue the output of the stafffinding algorithms if they retrieve broken staff
+        stf_position = self.stafffinding_glue(stf_position)
 
         # Appends the proper system number according to the user input
         for i, s in enumerate(stf_position):
@@ -669,8 +706,8 @@ if __name__ == "__main__":
     interfiles = args.interfiles
 
     # internal parameters for filtering barline candidates
-    ar_thresh = 0.25
-    v_thresh = 0.66
+    ar_thresh = 0.138
+    v_thresh = 0.550
 
     bar_finder = BarlineFinder(ar_thresh, v_thresh, interfiles, verbose)
     staff_bb, bar_bb, image_path, image_width, image_height, image_dpi = bar_finder.process_file(input_file, sg_hint, noborderremove, norotation)
