@@ -110,6 +110,7 @@ class EvaluateMeasureFinder(object):
         precision = []
         recall = []
         fmeasure = []
+        weights = []
 
         '''
         process all image files. Assumes the directory structure is:
@@ -178,7 +179,7 @@ class EvaluateMeasureFinder(object):
             # calculate number of pixels the padding is
             bb_padding_px = bb_padding_in * image_dpi
 
-            p, r, f = self._evaluate_output(mei_path, gt_mei_path, bb_padding_px)
+            p, r, f, num_gt_measures = self._evaluate_output(mei_path, gt_mei_path, bb_padding_px)
             if verbose:
                 print '\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f)
             logging.info('\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f))
@@ -187,6 +188,7 @@ class EvaluateMeasureFinder(object):
             precision.append(p)
             recall.append(r)
             fmeasure.append(f)
+            weights.append(num_gt_measures)
 
         logging.info("Done experiment.")
         logging.info("Number of errors: %d" % num_errors)
@@ -198,9 +200,16 @@ class EvaluateMeasureFinder(object):
         avg_recall = np.mean(recall)
         avg_fmeasure = np.mean(fmeasure)
 
+        w_total = sum(weights)
+        w_avg_precision = np.dot(precision, weights) / w_total
+        w_avg_recall = np.dot(recall, weights) / w_total 
+        w_avg_fmeasure = np.dot(fmeasure, weights) / w_total
+
         if self.verbose:
             print "\nAverage precision: %.2f\nAverage recall: %.2f\nAverage f-measure: %.2f" % (avg_precision, avg_recall, avg_fmeasure)
+            print "\nWeighted Average precision: %.2f\nWeighted Average recall: %.2f\nWeighted Average f-measure: %.2f" % (w_avg_precision, w_avg_recall, w_avg_fmeasure)
         logging.info("\nAverage precision: %.2f\nAverage recall: %.2f\nAverage f-measure: %.2f" % (avg_precision, avg_recall, avg_fmeasure))
+        logging.info("\nWeighted Average precision: %.2f\nWeighted Average recall: %.2f\nWeighted Average f-measure: %.2f" % (w_avg_precision, w_avg_recall, w_avg_fmeasure))
 
     def _get_sg_hint(self, sg_hint_file_path):
         '''
@@ -282,7 +291,7 @@ class EvaluateMeasureFinder(object):
 
         f = calc_fmeasure(p,r)
 
-        return p, r, f
+        return p, r, f, num_gt_measures
 
 if __name__ == "__main__":
     # parse command line arguments
