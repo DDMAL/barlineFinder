@@ -208,8 +208,12 @@ class EvaluateMeasureFinder(object):
         if self.verbose:
             print "\nAverage precision: %.2f\nAverage recall: %.2f\nAverage f-measure: %.2f" % (avg_precision, avg_recall, avg_fmeasure)
             print "\nWeighted Average precision: %.2f\nWeighted Average recall: %.2f\nWeighted Average f-measure: %.2f" % (w_avg_precision, w_avg_recall, w_avg_fmeasure)
+            print "\n\nDataset statistics:"
+            print "Number of measures: %d, mean per page: %.2f, variance: %.2f" % (sum(weights), np.mean(weights), np.var(weights))
         logging.info("\nAverage precision: %.2f\nAverage recall: %.2f\nAverage f-measure: %.2f" % (avg_precision, avg_recall, avg_fmeasure))
         logging.info("\nWeighted Average precision: %.2f\nWeighted Average recall: %.2f\nWeighted Average f-measure: %.2f" % (w_avg_precision, w_avg_recall, w_avg_fmeasure))
+        logging.info("\n\nDataset statistics:")
+        logging.info("Number of measures: %d, mean per page: %.2f, variance: %.2f" % (sum(weights), np.mean(weights), np.var(weights)))
 
     def _get_sg_hint(self, sg_hint_file_path):
         '''
