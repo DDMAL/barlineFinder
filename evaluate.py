@@ -182,7 +182,9 @@ class EvaluateMeasureFinder(object):
             p, r, f, num_gt_measures = self._evaluate_output(mei_path, gt_mei_path, bb_padding_px)
             if verbose:
                 print '\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f)
+                print '\tnumber of measures: %d' % num_gt_measures
             logging.info('\tprecision: %.2f\n\trecall: %.2f\n\tf-measure: %.2f' % (p, r, f))
+            logging.info('\tnumber of measures: %d' % num_gt_measures)
 
             # keep track of global experiment results
             precision.append(p)
